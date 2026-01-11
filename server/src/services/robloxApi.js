@@ -244,6 +244,185 @@ class RobloxAPI {
       throw new Error(`Erreur lors de la conversion: ${error.message}`);
     }
   }
+
+  async testApiKeyPermissions() {
+    const apiKey = this.getApiKey();
+    const universeIds = configManager.getUniverseIds();
+    const testUniverseId = universeIds.length > 0 ? universeIds[0] : '53346239'; // Bloxburg as fallback
+
+    if (!apiKey) {
+      return [{
+        name: 'Clé API',
+        endpoint: 'N/A',
+        success: false,
+        message: 'Aucune clé API configurée',
+        scope: 'N/A'
+      }];
+    }
+
+    const tests = [];
+    const headers = {
+      'x-api-key': apiKey,
+      'Content-Type': 'application/json'
+    };
+
+    // Test 1: Basic Games API (no auth needed, but good sanity check)
+    try {
+      await axios.get(`${this.gamesURL}/v1/games?universeIds=${testUniverseId}`);
+      tests.push({
+        name: 'API Statistiques de base',
+        endpoint: '/v1/games',
+        success: true,
+        message: 'Accès aux statistiques publiques OK',
+        scope: 'Public (pas besoin de scope)'
+      });
+    } catch (error) {
+      tests.push({
+        name: 'API Statistiques de base',
+        endpoint: '/v1/games',
+        success: false,
+        message: `Erreur: ${error.response?.status || error.message}`,
+        scope: 'Public'
+      });
+    }
+
+    // Test 2: Game Passes API (public)
+    try {
+      await axios.get(`${this.gamesURL}/v1/games/${testUniverseId}/game-passes?limit=10`);
+      tests.push({
+        name: 'API Game Passes',
+        endpoint: `/v1/games/${testUniverseId}/game-passes`,
+        success: true,
+        message: 'Accès aux game passes OK',
+        scope: 'Public (pas besoin de scope)'
+      });
+    } catch (error) {
+      tests.push({
+        name: 'API Game Passes',
+        endpoint: `/v1/games/${testUniverseId}/game-passes`,
+        success: false,
+        message: `Erreur: ${error.response?.status || error.message}`,
+        scope: 'Public'
+      });
+    }
+
+    // Test 3: Open Cloud - Universe info (requires auth)
+    try {
+      const response = await axios.get(
+        `${this.baseURL}/cloud/v2/universes/${testUniverseId}`,
+        { headers }
+      );
+      tests.push({
+        name: 'Open Cloud - Universe Info',
+        endpoint: `/cloud/v2/universes/${testUniverseId}`,
+        success: true,
+        message: 'Accès Open Cloud OK',
+        scope: 'universe.read ou similaire',
+        details: response.data
+      });
+    } catch (error) {
+      const status = error.response?.status;
+      let message = '';
+      let scope = 'universe.read';
+
+      if (status === 401) {
+        message = 'Clé API invalide ou expirée';
+      } else if (status === 403) {
+        message = 'Permission refusée - scope manquant';
+        scope = '❌ MANQUANT: universe.read';
+      } else if (status === 404) {
+        message = 'Endpoint non trouvé ou Universe ID invalide';
+      } else {
+        message = `Erreur ${status}: ${error.response?.data?.message || error.message}`;
+      }
+
+      tests.push({
+        name: 'Open Cloud - Universe Info',
+        endpoint: `/cloud/v2/universes/${testUniverseId}`,
+        success: false,
+        message,
+        scope
+      });
+    }
+
+    // Test 4: Open Cloud - Developer Products (requires specific scope)
+    try {
+      const response = await axios.get(
+        `${this.baseURL}/cloud/v2/universes/${testUniverseId}/developer-products`,
+        { headers }
+      );
+      tests.push({
+        name: 'Open Cloud - Developer Products',
+        endpoint: `/cloud/v2/universes/${testUniverseId}/developer-products`,
+        success: true,
+        message: 'Accès aux produits développeur OK',
+        scope: 'developer-products:read',
+        productCount: response.data?.developerProducts?.length || 0
+      });
+    } catch (error) {
+      const status = error.response?.status;
+      let message = '';
+      let scope = 'developer-products:read';
+
+      if (status === 401) {
+        message = 'Clé API invalide';
+      } else if (status === 403) {
+        message = 'Permission refusée - scope manquant';
+        scope = '❌ MANQUANT: developer-products:read';
+      } else if (status === 404) {
+        message = 'Endpoint non trouvé (peut-être pas de produits)';
+      } else {
+        message = `Erreur ${status}: ${error.response?.data?.message || error.message}`;
+      }
+
+      tests.push({
+        name: 'Open Cloud - Developer Products',
+        endpoint: `/cloud/v2/universes/${testUniverseId}/developer-products`,
+        success: false,
+        message,
+        scope
+      });
+    }
+
+    // Test 5: Analytics API (if available)
+    try {
+      const response = await axios.get(
+        `${this.baseURL}/cloud/v2/universes/${testUniverseId}/analytics`,
+        { headers }
+      );
+      tests.push({
+        name: 'Open Cloud - Analytics',
+        endpoint: `/cloud/v2/universes/${testUniverseId}/analytics`,
+        success: true,
+        message: 'Accès aux analytics OK',
+        scope: 'analytics:read'
+      });
+    } catch (error) {
+      const status = error.response?.status;
+      let message = '';
+      let scope = 'analytics:read';
+
+      if (status === 403) {
+        message = 'Permission refusée - scope manquant ou non disponible';
+        scope = '❌ MANQUANT: analytics:read (peut ne pas être disponible)';
+      } else if (status === 404) {
+        message = 'Analytics API pas encore disponible';
+        scope = '⚠️ Analytics API pas encore publié par Roblox';
+      } else {
+        message = `Erreur ${status}`;
+      }
+
+      tests.push({
+        name: 'Open Cloud - Analytics',
+        endpoint: `/cloud/v2/universes/${testUniverseId}/analytics`,
+        success: false,
+        message,
+        scope
+      });
+    }
+
+    return tests;
+  }
 }
 
 export default new RobloxAPI();
