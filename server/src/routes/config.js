@@ -74,7 +74,18 @@ router.post('/universe', (req, res) => {
       return res.status(400).json({ error: 'universeId is required' });
     }
 
-    configManager.addUniverseId(universeId.toString().trim());
+    const trimmedId = universeId.toString().trim();
+    const currentIds = configManager.getUniverseIds();
+
+    // Check for duplicates
+    if (currentIds.includes(trimmedId)) {
+      return res.status(400).json({
+        error: 'Ce Universe ID est déjà ajouté',
+        duplicate: true
+      });
+    }
+
+    configManager.addUniverseId(trimmedId);
     robloxApi.clearCache();
 
     res.json({
@@ -115,6 +126,25 @@ router.post('/cache/clear', (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Convert Place ID to Universe ID
+router.get('/convert-place/:placeId', async (req, res) => {
+  try {
+    const { placeId } = req.params;
+    const universeId = await robloxApi.convertPlaceToUniverse(placeId);
+
+    res.json({
+      success: true,
+      placeId,
+      universeId
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
   }
 });
 

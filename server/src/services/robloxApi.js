@@ -218,6 +218,32 @@ class RobloxAPI {
       return { query, transactions: [], totalSales: 0 };
     }
   }
+
+  async convertPlaceToUniverse(placeId) {
+    const cacheKey = `place_to_universe_${placeId}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const response = await axios.get(
+        `${this.baseURL}/universes/v1/places/${placeId}/universe`
+      );
+
+      const universeId = response.data.universeId;
+
+      if (!universeId) {
+        throw new Error('Invalid Place ID or Place not found');
+      }
+
+      cache.set(cacheKey, universeId, 3600); // Cache for 1 hour
+      return universeId;
+    } catch (error) {
+      if (error.response?.status === 404) {
+        throw new Error('Place ID not found. Vérifiez que le Place ID est correct.');
+      }
+      throw new Error(`Erreur lors de la conversion: ${error.message}`);
+    }
+  }
 }
 
 export default new RobloxAPI();

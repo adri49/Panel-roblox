@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Settings as SettingsIcon, Save, Plus, Trash2, Key, Hash, RefreshCw } from 'lucide-react'
-import { fetchConfig, updateConfig, addUniverseId, removeUniverseId, clearCache } from '../api'
+import { Settings as SettingsIcon, Save, Plus, Trash2, Key, Hash, RefreshCw, ArrowRight } from 'lucide-react'
+import { fetchConfig, updateConfig, addUniverseId, removeUniverseId, clearCache, convertPlaceToUniverse } from '../api'
 
 interface ConfigData {
   universeIds: string[]
@@ -18,6 +18,8 @@ const Settings = () => {
   })
   const [apiKey, setApiKey] = useState('')
   const [newUniverseId, setNewUniverseId] = useState('')
+  const [placeId, setPlaceId] = useState('')
+  const [converting, setConverting] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
@@ -87,9 +89,35 @@ const Settings = () => {
       }
 
       showMessage('success', 'Universe ID ajouté !')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding universe ID:', error)
-      showMessage('error', 'Erreur lors de l\'ajout')
+
+      // Check if it's a duplicate error
+      if (error.response?.data?.duplicate) {
+        showMessage('error', error.response.data.error || 'Cet ID est déjà ajouté')
+      } else {
+        showMessage('error', 'Erreur lors de l\'ajout')
+      }
+    }
+  }
+
+  const handleConvertPlace = async () => {
+    if (!placeId.trim()) return
+
+    setConverting(true)
+    try {
+      const result = await convertPlaceToUniverse(placeId.trim())
+
+      if (result.success && result.universeId) {
+        setNewUniverseId(result.universeId.toString())
+        setPlaceId('')
+        showMessage('success', `Universe ID trouvé : ${result.universeId}`)
+      }
+    } catch (error: any) {
+      console.error('Error converting place ID:', error)
+      showMessage('error', error.response?.data?.error || 'Erreur lors de la conversion')
+    } finally {
+      setConverting(false)
     }
   }
 
@@ -212,6 +240,31 @@ const Settings = () => {
             <Hash className="w-6 h-6" />
           </div>
           <h3 className="text-2xl font-bold text-white">Universe IDs des Jeux</h3>
+        </div>
+
+        {/* Convert Place ID to Universe ID */}
+        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 mb-4">
+          <p className="text-yellow-200 text-sm mb-3">
+            💡 Vous avez un <strong>Place ID</strong> ? Convertissez-le en Universe ID ici
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={placeId}
+              onChange={(e) => setPlaceId(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleConvertPlace()}
+              placeholder="Entrez le Place ID (ex: 84545134639707)"
+              className="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50"
+            />
+            <button
+              onClick={handleConvertPlace}
+              disabled={converting}
+              className="bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white font-semibold py-3 px-6 rounded-xl transition-all flex items-center gap-2 disabled:opacity-50"
+            >
+              <ArrowRight className="w-5 h-5" />
+              {converting ? 'Conversion...' : 'Convertir'}
+            </button>
+          </div>
         </div>
 
         {/* Add Universe ID */}
