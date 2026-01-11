@@ -19,6 +19,9 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Roblox Stats API is running' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+// Listen on 0.0.0.0 to accept connections from any network interface
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on http://0.0.0.0:${PORT}`);
+  console.log(`Local access: http://localhost:${PORT}`);
+  console.log(`Network access: http://192.168.1.18:${PORT}`);
 });
