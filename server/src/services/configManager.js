@@ -10,7 +10,7 @@ const CONFIG_FILE = path.join(__dirname, '../../config.json');
 const defaultConfig = {
   robloxApiKey: '',
   universeIds: [],
-  cacheeTTL: 300,
+  cacheTTL: 300,
   lastUpdated: null
 };
 
@@ -46,9 +46,13 @@ class ConfigManager {
         lastUpdated: new Date().toISOString()
       };
       fs.writeFileSync(CONFIG_FILE, JSON.stringify(this.config, null, 2), 'utf8');
+      console.log('✅ Configuration saved successfully to:', CONFIG_FILE);
+      console.log('✅ API Key present:', !!this.config.robloxApiKey);
+      console.log('✅ API Key length:', this.config.robloxApiKey?.length || 0);
+      console.log('✅ Universe IDs:', this.config.universeIds);
       return true;
     } catch (error) {
-      console.error('Error saving config:', error);
+      console.error('❌ Error saving config:', error);
       return false;
     }
   }
