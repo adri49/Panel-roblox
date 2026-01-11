@@ -52,3 +52,8 @@ export const clearCache = async () => {
   const response = await axios.post(`${API_BASE}/config/cache/clear`)
   return response.data
 }
+
+export const convertPlaceToUniverse = async (placeId: string) => {
+  const response = await axios.get(`${API_BASE}/config/convert-place/${placeId}`)
+  return response.data
+}
