@@ -26,13 +26,16 @@ const Settings = () => {
     loadConfig()
   }, [])
 
-  const loadConfig = async () => {
+  const loadConfig = async (silent = false) => {
     try {
       const data = await fetchConfig()
       setConfig(data)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading config:', error)
-      showMessage('error', 'Erreur lors du chargement de la configuration')
+      // Don't show error message if it's a silent reload (after save)
+      if (!silent) {
+        showMessage('error', 'Erreur lors du chargement de la configuration')
+      }
     } finally {
       setLoading(false)
     }
@@ -54,10 +57,15 @@ const Settings = () => {
         updates.robloxApiKey = apiKey
       }
 
-      await updateConfig(updates)
+      const result = await updateConfig(updates)
+
+      // Update local state with server response instead of reloading
+      if (result.config) {
+        setConfig(result.config)
+      }
+
       showMessage('success', 'Configuration enregistrée avec succès !')
       setApiKey('')
-      loadConfig()
     } catch (error) {
       console.error('Error saving config:', error)
       showMessage('error', 'Erreur lors de l\'enregistrement')
@@ -70,10 +78,15 @@ const Settings = () => {
     if (!newUniverseId.trim()) return
 
     try {
-      await addUniverseId(newUniverseId.trim())
+      const result = await addUniverseId(newUniverseId.trim())
       setNewUniverseId('')
+
+      // Update local state with server response
+      if (result.universeIds) {
+        setConfig({ ...config, universeIds: result.universeIds })
+      }
+
       showMessage('success', 'Universe ID ajouté !')
-      loadConfig()
     } catch (error) {
       console.error('Error adding universe ID:', error)
       showMessage('error', 'Erreur lors de l\'ajout')
@@ -82,9 +95,14 @@ const Settings = () => {
 
   const handleRemoveUniverseId = async (id: string) => {
     try {
-      await removeUniverseId(id)
+      const result = await removeUniverseId(id)
+
+      // Update local state with server response
+      if (result.universeIds) {
+        setConfig({ ...config, universeIds: result.universeIds })
+      }
+
       showMessage('success', 'Universe ID supprimé !')
-      loadConfig()
     } catch (error) {
       console.error('Error removing universe ID:', error)
       showMessage('error', 'Erreur lors de la suppression')
