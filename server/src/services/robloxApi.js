@@ -250,6 +250,12 @@ class RobloxAPI {
     const universeIds = configManager.getUniverseIds();
     const testUniverseId = universeIds.length > 0 ? universeIds[0] : '53346239'; // Bloxburg as fallback
 
+    console.log('🔍 Testing API Key Permissions...');
+    console.log('🔑 API Key present:', !!apiKey);
+    console.log('🔑 API Key length:', apiKey?.length || 0);
+    console.log('🔑 API Key first 10 chars:', apiKey?.substring(0, 10) || 'N/A');
+    console.log('🎮 Test Universe ID:', testUniverseId);
+
     if (!apiKey) {
       return [{
         name: 'Clé API',
@@ -265,6 +271,8 @@ class RobloxAPI {
       'x-api-key': apiKey,
       'Content-Type': 'application/json'
     };
+
+    console.log('📤 Headers being sent:', { 'x-api-key': apiKey.substring(0, 20) + '...', 'Content-Type': 'application/json' });
 
     // Test 1: Basic Games API (no auth needed, but good sanity check)
     try {
