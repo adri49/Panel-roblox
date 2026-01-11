@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react'
 import Dashboard from './components/Dashboard'
 import SalesPanel from './components/SalesPanel'
+import Settings from './components/Settings'
 import { GameStats } from './types'
-import { fetchAllStats } from './api'
-import { BarChart3 } from 'lucide-react'
+import { fetchAllStats, clearCache } from './api'
+import { BarChart3, RefreshCw } from 'lucide-react'
 
 function App() {
   const [stats, setStats] = useState<GameStats[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'sales'>('dashboard')
+  const [refreshing, setRefreshing] = useState(false)
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'sales' | 'settings'>('dashboard')
 
   useEffect(() => {
     loadStats()
@@ -27,12 +29,24 @@ function App() {
     }
   }
 
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    try {
+      await clearCache()
+      await loadStats()
+    } catch (error) {
+      console.error('Erreur lors du rafraîchissement:', error)
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-4">
       <div className="max-w-7xl mx-auto">
         <header className="mb-8">
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-2xl border border-white/20">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-4">
               <div className="flex items-center gap-3">
                 <div className="bg-white/20 p-3 rounded-xl">
                   <BarChart3 className="w-8 h-8 text-white" />
@@ -42,7 +56,7 @@ function App() {
                   <p className="text-white/80">Tableau de bord des statistiques</p>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <button
                   onClick={() => setActiveTab('dashboard')}
                   className={`px-6 py-3 rounded-xl font-semibold transition-all ${
@@ -63,6 +77,27 @@ function App() {
                 >
                   Ventes
                 </button>
+                <button
+                  onClick={() => setActiveTab('settings')}
+                  className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+                    activeTab === 'settings'
+                      ? 'bg-white text-purple-600 shadow-lg'
+                      : 'bg-white/20 text-white hover:bg-white/30'
+                  }`}
+                >
+                  Configuration
+                </button>
+                <button
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  className={`px-6 py-3 rounded-xl font-semibold transition-all bg-white/20 text-white hover:bg-white/30 flex items-center gap-2 disabled:opacity-50 ${
+                    refreshing ? 'animate-pulse' : ''
+                  }`}
+                  title="Vider le cache et actualiser"
+                >
+                  <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+                  {refreshing ? 'Actualisation...' : 'Actualiser'}
+                </button>
               </div>
             </div>
           </div>
@@ -74,11 +109,9 @@ function App() {
           </div>
         ) : (
           <>
-            {activeTab === 'dashboard' ? (
-              <Dashboard stats={stats} />
-            ) : (
-              <SalesPanel />
-            )}
+            {activeTab === 'dashboard' && <Dashboard stats={stats} />}
+            {activeTab === 'sales' && <SalesPanel />}
+            {activeTab === 'settings' && <Settings />}
           </>
         )}
       </div>

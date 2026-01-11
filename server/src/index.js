@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import statsRouter from './routes/stats.js';
 import salesRouter from './routes/sales.js';
+import configRouter from './routes/config.js';
 
 dotenv.config();
 
@@ -14,6 +15,7 @@ app.use(express.json());
 
 app.use('/api/stats', statsRouter);
 app.use('/api/sales', salesRouter);
+app.use('/api/config', configRouter);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Roblox Stats API is running' });

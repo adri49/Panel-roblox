@@ -13,6 +13,10 @@ pnpm-lock.yaml
 server/.env
 client/.env
 
+# Configuration files (contains sensitive data)
+server/config.json
+server/config.json.backup
+
 # Build outputs
 dist/
 build/
