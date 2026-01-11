@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Settings as SettingsIcon, Save, Plus, Trash2, Key, Hash, RefreshCw, ArrowRight } from 'lucide-react'
-import { fetchConfig, updateConfig, addUniverseId, removeUniverseId, clearCache, convertPlaceToUniverse } from '../api'
+import { Settings as SettingsIcon, Save, Plus, Trash2, Key, Hash, RefreshCw, ArrowRight, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { fetchConfig, updateConfig, addUniverseId, removeUniverseId, clearCache, convertPlaceToUniverse, testApiKey } from '../api'
 
 interface ConfigData {
   universeIds: string[]
@@ -20,6 +20,8 @@ const Settings = () => {
   const [newUniverseId, setNewUniverseId] = useState('')
   const [placeId, setPlaceId] = useState('')
   const [converting, setConverting] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [testResults, setTestResults] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
@@ -147,6 +149,30 @@ const Settings = () => {
     }
   }
 
+  const handleTestApiKey = async () => {
+    setTesting(true)
+    setTestResults(null)
+    try {
+      const results = await testApiKey()
+      setTestResults(results)
+
+      if (results.hasApiKey) {
+        if (results.summary.failed === 0) {
+          showMessage('success', `Tous les tests réussis ! (${results.summary.passed}/${results.summary.total})`)
+        } else {
+          showMessage('error', `${results.summary.failed} test(s) échoué(s) sur ${results.summary.total}`)
+        }
+      } else {
+        showMessage('error', 'Aucune clé API configurée')
+      }
+    } catch (error) {
+      console.error('Error testing API key:', error)
+      showMessage('error', 'Erreur lors du test de la clé API')
+    } finally {
+      setTesting(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -200,6 +226,67 @@ const Settings = () => {
             <p className="text-white/60 text-sm mt-2">
               {config.hasApiKey ? '✅ Clé API configurée' : '⚠️ Aucune clé API configurée'}
             </p>
+
+            {/* Test API Key Button */}
+            {config.hasApiKey && (
+              <button
+                onClick={handleTestApiKey}
+                disabled={testing}
+                className="mt-3 w-full bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/50 text-blue-200 font-semibold py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <AlertCircle className="w-4 h-4" />
+                {testing ? 'Test en cours...' : 'Tester les permissions de la clé API'}
+              </button>
+            )}
+
+            {/* Test Results */}
+            {testResults && testResults.hasApiKey && (
+              <div className="mt-4 bg-white/5 rounded-xl p-4 border border-white/10">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-white font-semibold">Résultats du test</h4>
+                  <div className="text-sm">
+                    <span className="text-green-400">{testResults.summary.passed} ✓</span>
+                    {' / '}
+                    <span className="text-red-400">{testResults.summary.failed} ✗</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {testResults.tests.map((test: any, index: number) => (
+                    <div
+                      key={index}
+                      className={`p-3 rounded-lg border ${
+                        test.success
+                          ? 'bg-green-500/10 border-green-500/30'
+                          : 'bg-red-500/10 border-red-500/30'
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        {test.success ? (
+                          <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
+                        ) : (
+                          <XCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                        )}
+                        <div className="flex-1">
+                          <p className="text-white font-semibold text-sm">{test.name}</p>
+                          <p className={`text-sm ${test.success ? 'text-green-200' : 'text-red-200'}`}>
+                            {test.message}
+                          </p>
+                          <p className="text-white/50 text-xs mt-1">
+                            Scope: {test.scope}
+                          </p>
+                          {test.productCount !== undefined && (
+                            <p className="text-white/50 text-xs">
+                              Produits trouvés: {test.productCount}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Cache TTL */}

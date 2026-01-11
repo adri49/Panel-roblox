@@ -57,3 +57,8 @@ export const convertPlaceToUniverse = async (placeId: string) => {
   const response = await axios.get(`${API_BASE}/config/convert-place/${placeId}`)
   return response.data
 }
+
+export const testApiKey = async () => {
+  const response = await axios.get(`${API_BASE}/stats/test-api-key`)
+  return response.data
+}

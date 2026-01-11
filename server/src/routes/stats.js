@@ -53,4 +53,33 @@ router.get('/all', async (req, res) => {
   }
 });
 
+// Test API key and check permissions
+router.get('/test-api-key', async (req, res) => {
+  try {
+    const apiKey = configManager.getApiKey();
+
+    if (!apiKey) {
+      return res.json({
+        hasApiKey: false,
+        message: 'Aucune clé API configurée',
+        tests: []
+      });
+    }
+
+    const tests = await robloxApi.testApiKeyPermissions();
+
+    res.json({
+      hasApiKey: true,
+      tests,
+      summary: {
+        total: tests.length,
+        passed: tests.filter(t => t.success).length,
+        failed: tests.filter(t => !t.success).length
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
