@@ -73,65 +73,40 @@ class RobloxAPI {
 
     const apiKey = this.getApiKey();
 
-    if (!apiKey) {
-      console.warn('No API key configured, revenue data unavailable');
-      return { universeId, totalRevenue: 0, products: [], message: 'API key required' };
-    }
-
     try {
-      const headers = {
-        'x-api-key': apiKey,
-        'Content-Type': 'application/json'
-      };
-
-      // Get developer products for this universe
       let totalRevenue = 0;
       let products = [];
 
-      try {
-        // Get developer products using Open Cloud API
-        const productsResponse = await axios.get(
-          `${this.baseURL}/cloud/v2/universes/${universeId}/developer-products`,
-          { headers }
-        );
-
-        products = productsResponse.data.developerProducts || [];
-
-        // Calculate estimated revenue from product prices
-        totalRevenue = products.reduce((sum, product) => {
-          return sum + (product.priceInRobux || 0);
-        }, 0);
-      } catch (error) {
-        console.log(`Developer products API error: ${error.message}`);
-      }
-
-      // Try to get game passes as additional revenue source
+      // Try to get game passes (public API - no key needed)
       try {
         const gamePasses = await this.getGamePasses(universeId);
-        products = [...products, ...gamePasses];
+        products = [...gamePasses];
 
-        totalRevenue += gamePasses.reduce((sum, pass) => {
+        totalRevenue = gamePasses.reduce((sum, pass) => {
           return sum + (pass.price || 0);
         }, 0);
+
+        console.log(`Found ${gamePasses.length} game passes for universe ${universeId}`);
       } catch (error) {
-        console.log(`Game passes error: ${error.message}`);
+        console.log(`Game passes error for ${universeId}: ${error.message}`);
       }
 
+      // Note: Real revenue/sales data requires Analytics API or webhooks
+      // which are not publicly available via Open Cloud yet
       const revenue = {
         universeId,
         totalRevenue,
         products,
-        currency: 'R$'
+        currency: 'R$',
+        note: apiKey
+          ? 'Showing game pass prices. Real sales data requires Analytics API access.'
+          : 'Add API key for additional data access.'
       };
 
       cache.set(cacheKey, revenue);
       return revenue;
     } catch (error) {
       console.error(`Error fetching revenue for universe ${universeId}:`, error.message);
-      if (error.response) {
-        console.error('Response status:', error.response.status);
-        console.error('Response data:', error.response.data);
-      }
       return {
         universeId,
         totalRevenue: 0,
@@ -148,13 +123,18 @@ class RobloxAPI {
 
     try {
       const response = await axios.get(
-        `${this.gamesURL}/v1/games/${universeId}/game-passes?limit=100`
+        `${this.gamesURL}/v1/games/${universeId}/game-passes?limit=100&sortOrder=Asc`
       );
 
       const gamePasses = response.data.data || [];
       cache.set(cacheKey, gamePasses);
       return gamePasses;
     } catch (error) {
+      // If 404, the universe might not have any game passes or the ID is wrong
+      if (error.response?.status === 404) {
+        console.log(`No game passes found for universe ${universeId} (or invalid ID)`);
+        return [];
+      }
       console.error(`Error fetching game passes for ${universeId}:`, error.message);
       return [];
     }
@@ -167,45 +147,29 @@ class RobloxAPI {
 
     const apiKey = this.getApiKey();
 
-    if (!apiKey) {
-      return {
-        universeId,
-        transactions: [],
-        totalSales: 0,
-        message: 'API key required for sales data'
-      };
-    }
-
     try {
-      const headers = {
-        'x-api-key': apiKey,
-        'Content-Type': 'application/json'
-      };
-
-      // Note: Roblox doesn't provide a direct "sales transactions" API in Open Cloud
-      // This would need to be implemented with Economy API or Analytics API when available
-      // For now, we return the game passes and developer products as "catalog"
-
+      // Get available products (game passes)
       const products = await this.getGamePasses(universeId);
 
-      // Mock transaction data from products (in reality, you'd need webhooks or analytics API)
+      // Mock transaction data from products
+      // Real transaction history requires webhook integration or Analytics API
       const transactions = products.map(product => ({
-        id: `tx_${product.id}_${Date.now()}`,
+        id: `product_${product.id}`,
         productName: product.name,
         productId: product.id,
-        buyerUsername: 'N/A', // Not available without transaction API
+        buyerUsername: 'Webhook required',
         buyerId: null,
         price: product.price || 0,
         currency: 'R$',
         timestamp: new Date().toISOString(),
-        note: 'Transaction history requires webhook integration'
+        note: 'Configure webhooks for real purchase tracking'
       }));
 
       const sales = {
         universeId,
         transactions,
         totalSales: transactions.reduce((sum, t) => sum + t.price, 0),
-        note: 'Real-time transaction tracking requires webhook setup'
+        note: 'Real-time sales tracking requires webhook setup. Showing available products only.'
       };
 
       cache.set(cacheKey, sales);
