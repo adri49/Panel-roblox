@@ -190,4 +190,38 @@ router.get('/test-revenue/:groupId', async (req, res) => {
   }
 });
 
+// Test economycreatorstats API
+router.get('/test-economy-stats/:universeId', async (req, res) => {
+  try {
+    const { universeId } = req.params;
+    const statsData = await robloxApi.getUniverseEconomyStats(universeId);
+    res.json({
+      success: true,
+      ...statsData
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Test engagement payouts API
+router.get('/test-engagement-payouts/:universeId', async (req, res) => {
+  try {
+    const { universeId } = req.params;
+    const payoutData = await robloxApi.getEngagementPayouts(universeId);
+    res.json({
+      success: true,
+      ...payoutData
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 export default router;

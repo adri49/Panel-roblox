@@ -9,6 +9,8 @@ class RobloxAPI {
     this.baseURL = 'https://apis.roblox.com';
     this.economyURL = 'https://economy.roblox.com';
     this.gamesURL = 'https://games.roblox.com';
+    this.economyCreatorStatsURL = 'https://economycreatorstats.roblox.com';
+    this.engagementPayoutsURL = 'https://engagementpayouts.roblox.com';
   }
 
   getApiKey() {
@@ -378,6 +380,90 @@ class RobloxAPI {
         throw new Error('Place ID not found. Vérifiez que le Place ID est correct.');
       }
       throw new Error(`Erreur lors de la conversion: ${error.message}`);
+    }
+  }
+
+  async getUniverseEconomyStats(universeId) {
+    const cacheKey = `economy_stats_${universeId}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return cached;
+
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
+      throw new Error('API key required for economy stats');
+    }
+
+    const headers = {
+      'x-api-key': apiKey
+    };
+
+    console.log(`🔍 Testing economycreatorstats API for universe ${universeId}...`);
+
+    try {
+      const url = `${this.economyCreatorStatsURL}/v1/universes/${universeId}/stats`;
+      console.log(`  📤 URL: ${url}`);
+      console.log(`  🔑 Using API key authentication`);
+
+      const response = await axios.get(url, { headers });
+
+      const statsData = {
+        universeId,
+        data: response.data,
+        source: 'economycreatorstats API',
+        fetchedAt: new Date().toISOString()
+      };
+
+      cache.set(cacheKey, statsData, 300);
+      console.log(`  ✅ Success! Data:`, JSON.stringify(response.data, null, 2));
+      return statsData;
+    } catch (error) {
+      console.log(`  ❌ Failed: ${error.response?.status} ${error.response?.statusText}`);
+      if (error.response?.data) {
+        console.log(`  📋 Error details:`, JSON.stringify(error.response.data, null, 2));
+      }
+      throw new Error(`economycreatorstats API failed: ${error.response?.status} - ${error.response?.data?.message || error.message}`);
+    }
+  }
+
+  async getEngagementPayouts(universeId) {
+    const cacheKey = `engagement_payouts_${universeId}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return cached;
+
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
+      throw new Error('API key required for engagement payouts');
+    }
+
+    const headers = {
+      'x-api-key': apiKey
+    };
+
+    console.log(`🔍 Testing engagementpayouts API for universe ${universeId}...`);
+
+    try {
+      const url = `${this.engagementPayoutsURL}/v1/universes/${universeId}/engagement-payout`;
+      console.log(`  📤 URL: ${url}`);
+      console.log(`  🔑 Using API key authentication`);
+
+      const response = await axios.get(url, { headers });
+
+      const payoutData = {
+        universeId,
+        data: response.data,
+        source: 'engagementpayouts API',
+        fetchedAt: new Date().toISOString()
+      };
+
+      cache.set(cacheKey, payoutData, 300);
+      console.log(`  ✅ Success! Data:`, JSON.stringify(response.data, null, 2));
+      return payoutData;
+    } catch (error) {
+      console.log(`  ❌ Failed: ${error.response?.status} ${error.response?.statusText}`);
+      if (error.response?.data) {
+        console.log(`  📋 Error details:`, JSON.stringify(error.response.data, null, 2));
+      }
+      throw new Error(`engagementpayouts API failed: ${error.response?.status} - ${error.response?.data?.message || error.message}`);
     }
   }
 
