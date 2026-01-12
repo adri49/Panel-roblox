@@ -14,6 +14,17 @@ router.get('/universe/:universeId', async (req, res) => {
   }
 });
 
+// Get detailed information about a game (stats + monetization)
+router.get('/universe/:universeId/details', async (req, res) => {
+  try {
+    const { universeId } = req.params;
+    const details = await robloxApi.getGameDetails(universeId);
+    res.json(details);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.get('/revenue/:universeId', async (req, res) => {
   try {
     const { universeId } = req.params;

@@ -11,6 +11,7 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [activeTab, setActiveTab] = useState<'dashboard' | 'sales' | 'settings'>('dashboard')
+  const [nextRefresh, setNextRefresh] = useState(60)
 
   useEffect(() => {
     loadStats()
@@ -18,10 +19,22 @@ function App() {
     return () => clearInterval(interval)
   }, [])
 
+  useEffect(() => {
+    // Countdown timer
+    const timer = setInterval(() => {
+      setNextRefresh((prev) => {
+        if (prev <= 1) return 60
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
   const loadStats = async () => {
     try {
       const data = await fetchAllStats()
       setStats(data)
+      setNextRefresh(60) // Reset countdown after each auto-refresh
     } catch (error) {
       console.error('Erreur lors du chargement des statistiques:', error)
     } finally {
@@ -31,6 +44,7 @@ function App() {
 
   const handleRefresh = async () => {
     setRefreshing(true)
+    setNextRefresh(60) // Reset countdown
     try {
       await clearCache()
       await loadStats()
@@ -39,6 +53,12 @@ function App() {
     } finally {
       setRefreshing(false)
     }
+  }
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
   return (
@@ -98,6 +118,10 @@ function App() {
                   <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
                   {refreshing ? 'Actualisation...' : 'Actualiser'}
                 </button>
+                <div className="px-4 py-3 rounded-xl bg-white/10 text-white flex items-center gap-2 border border-white/20">
+                  <span className="text-white/70 text-sm">Prochaine actualisation:</span>
+                  <span className="font-mono font-bold text-lg">{formatTime(nextRefresh)}</span>
+                </div>
               </div>
             </div>
           </div>

@@ -140,6 +140,84 @@ class RobloxAPI {
     }
   }
 
+  async getDeveloperProducts(universeId) {
+    const cacheKey = `devproducts_${universeId}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return cached;
+
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
+      console.log('No API key configured for Developer Products');
+      return [];
+    }
+
+    try {
+      const response = await axios.get(
+        `${this.baseURL}/cloud/v2/universes/${universeId}/developer-products?maxPageSize=100`,
+        {
+          headers: {
+            'x-api-key': apiKey
+          }
+        }
+      );
+
+      const products = response.data.developerProducts || [];
+      cache.set(cacheKey, products);
+      console.log(`Found ${products.length} developer products for universe ${universeId}`);
+      return products;
+    } catch (error) {
+      if (error.response?.status === 404) {
+        console.log(`No developer products found for universe ${universeId}`);
+        return [];
+      }
+      if (error.response?.status === 403) {
+        console.log(`Permission denied for developer products - check scope: developer-product:read`);
+        return [];
+      }
+      console.error(`Error fetching developer products for ${universeId}:`, error.message);
+      return [];
+    }
+  }
+
+  async getSubscriptions(universeId) {
+    const cacheKey = `subscriptions_${universeId}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return cached;
+
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
+      console.log('No API key configured for Subscriptions');
+      return [];
+    }
+
+    try {
+      const response = await axios.get(
+        `${this.baseURL}/cloud/v2/universes/${universeId}/subscriptions?maxPageSize=100`,
+        {
+          headers: {
+            'x-api-key': apiKey
+          }
+        }
+      );
+
+      const subscriptions = response.data.subscriptions || [];
+      cache.set(cacheKey, subscriptions);
+      console.log(`Found ${subscriptions.length} subscriptions for universe ${universeId}`);
+      return subscriptions;
+    } catch (error) {
+      if (error.response?.status === 404) {
+        console.log(`No subscriptions found for universe ${universeId}`);
+        return [];
+      }
+      if (error.response?.status === 403) {
+        console.log(`Permission denied for subscriptions - check scope: subscription:read`);
+        return [];
+      }
+      console.error(`Error fetching subscriptions for ${universeId}:`, error.message);
+      return [];
+    }
+  }
+
   async getSalesData(universeId) {
     const cacheKey = `sales_${universeId}`;
     const cached = cache.get(cacheKey);
@@ -216,6 +294,64 @@ class RobloxAPI {
     } catch (error) {
       console.error(`Error searching purchases:`, error.message);
       return { query, transactions: [], totalSales: 0 };
+    }
+  }
+
+  async getGameDetails(universeId) {
+    const cacheKey = `details_${universeId}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+      // Fetch all data in parallel for better performance
+      const [stats, gamePasses, devProducts, subscriptions] = await Promise.all([
+        this.getUniverseStats(universeId),
+        this.getGamePasses(universeId),
+        this.getDeveloperProducts(universeId),
+        this.getSubscriptions(universeId)
+      ]);
+
+      const details = {
+        universeId,
+        ...stats,
+        monetization: {
+          gamePasses: gamePasses.map(gp => ({
+            id: gp.id,
+            name: gp.name,
+            displayName: gp.displayName,
+            price: gp.price || 0,
+            isForSale: gp.price !== null,
+            description: gp.description,
+            iconImageId: gp.iconImageId
+          })),
+          developerProducts: devProducts.map(dp => ({
+            id: dp.id || dp.path?.split('/').pop(),
+            name: dp.displayName || dp.name,
+            description: dp.description,
+            price: dp.priceInRobux || 0,
+            iconImageId: dp.iconImageAssetId
+          })),
+          subscriptions: subscriptions.map(sub => ({
+            id: sub.id || sub.path?.split('/').pop(),
+            name: sub.displayName || sub.name,
+            description: sub.description,
+            price: sub.priceInRobux || 0,
+            period: sub.subscriptionPeriod
+          }))
+        },
+        summary: {
+          totalGamePasses: gamePasses.length,
+          totalDeveloperProducts: devProducts.length,
+          totalSubscriptions: subscriptions.length,
+          totalMonetizationItems: gamePasses.length + devProducts.length + subscriptions.length
+        }
+      };
+
+      cache.set(cacheKey, details);
+      return details;
+    } catch (error) {
+      console.error(`Error fetching details for universe ${universeId}:`, error.message);
+      throw error;
     }
   }
 

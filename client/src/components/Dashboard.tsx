@@ -1,12 +1,16 @@
+import { useState } from 'react'
 import { GameStats } from '../types'
-import { Users, Eye, TrendingUp, DollarSign } from 'lucide-react'
+import { Users, Eye, TrendingUp, DollarSign, ChevronRight } from 'lucide-react'
 import StatsCard from './StatsCard'
+import GameDetails from './GameDetails'
 
 interface DashboardProps {
   stats: GameStats[]
 }
 
 const Dashboard = ({ stats }: DashboardProps) => {
+  const [selectedGame, setSelectedGame] = useState<string | null>(null)
+
   const totalPlayers = stats.reduce((sum, game) => sum + game.playing, 0)
   const totalVisits = stats.reduce((sum, game) => sum + game.visits, 0)
   const totalRevenue = stats.reduce((sum, game) => sum + (game.revenue || 0), 0)
@@ -44,9 +48,13 @@ const Dashboard = ({ stats }: DashboardProps) => {
         {stats.map((game) => (
           <div
             key={game.universeId}
-            className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-2xl border border-white/20 hover:bg-white/15 transition-all"
+            onClick={() => setSelectedGame(game.universeId)}
+            className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-2xl border border-white/20 hover:bg-white/15 transition-all cursor-pointer group"
           >
-            <h3 className="text-2xl font-bold text-white mb-4">{game.name}</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-2xl font-bold text-white">{game.name}</h3>
+              <ChevronRight className="w-6 h-6 text-white/50 group-hover:text-white group-hover:translate-x-1 transition-all" />
+            </div>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-white/70">Joueurs actuels:</span>
@@ -91,6 +99,13 @@ const Dashboard = ({ stats }: DashboardProps) => {
             Aucun jeu configuré. Ajoutez vos Universe IDs dans le fichier .env
           </p>
         </div>
+      )}
+
+      {selectedGame && (
+        <GameDetails
+          universeId={selectedGame}
+          onClose={() => setSelectedGame(null)}
+        />
       )}
     </div>
   )
