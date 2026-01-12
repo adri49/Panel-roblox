@@ -2,13 +2,20 @@ import axios from 'axios'
 
 const API_BASE = '/api'
 
-// Configuration axios pour inclure automatiquement le token
+// Configuration axios pour inclure automatiquement le token et le team ID
 axios.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+
+    // Envoyer le team ID courant dans toutes les requêtes
+    const currentTeamId = localStorage.getItem('currentTeamId')
+    if (currentTeamId) {
+      config.headers['X-Team-Id'] = currentTeamId
+    }
+
     return config
   },
   (error) => {

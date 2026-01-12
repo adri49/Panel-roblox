@@ -1,12 +1,17 @@
 import express from 'express';
 import robloxApi from '../services/robloxApi.js';
-import configManager from '../services/configManager.js';
+import teamConfigService from '../services/teamConfigService.js';
+import { extractTeamId } from '../middleware/team.js';
 
 const router = express.Router();
+
+// Appliquer le middleware de team ID à toutes les routes
+router.use(extractTeamId);
 
 router.get('/universe/:universeId', async (req, res) => {
   try {
     const { universeId } = req.params;
+    robloxApi.setTeamContext(req.teamId);
     const stats = await robloxApi.getUniverseStats(universeId);
     res.json(stats);
   } catch (error) {
@@ -18,6 +23,7 @@ router.get('/universe/:universeId', async (req, res) => {
 router.get('/universe/:universeId/details', async (req, res) => {
   try {
     const { universeId } = req.params;
+    robloxApi.setTeamContext(req.teamId);
     const details = await robloxApi.getGameDetails(universeId);
     res.json(details);
   } catch (error) {
@@ -28,6 +34,7 @@ router.get('/universe/:universeId/details', async (req, res) => {
 router.get('/revenue/:universeId', async (req, res) => {
   try {
     const { universeId } = req.params;
+    robloxApi.setTeamContext(req.teamId);
     const revenue = await robloxApi.getGameRevenue(universeId);
     res.json(revenue);
   } catch (error) {
@@ -37,7 +44,9 @@ router.get('/revenue/:universeId', async (req, res) => {
 
 router.get('/all', async (req, res) => {
   try {
-    const universeIds = configManager.getUniverseIds();
+    robloxApi.setTeamContext(req.teamId);
+    const config = teamConfigService.getTeamConfig(req.teamId);
+    const universeIds = config.universeIds || [];
 
     if (universeIds.length === 0) {
       return res.json([]);
@@ -67,12 +76,14 @@ router.get('/all', async (req, res) => {
 // Test API key and check permissions
 router.get('/test-api-key', async (req, res) => {
   try {
-    const apiKey = configManager.getApiKey();
+    robloxApi.setTeamContext(req.teamId);
+    const config = teamConfigService.getTeamConfig(req.teamId);
+    const apiKey = config.robloxApiKey;
 
     if (!apiKey) {
       return res.json({
         hasApiKey: false,
-        message: 'Aucune clé API configurée',
+        message: 'Aucune clé API configurée pour cette équipe',
         tests: []
       });
     }

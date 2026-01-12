@@ -1,6 +1,7 @@
 import axios from 'axios';
 import NodeCache from 'node-cache';
 import configManager from './configManager.js';
+import teamConfigService from './teamConfigService.js';
 import oauth2Service from './oauth2Service.js';
 
 const cache = new NodeCache({ stdTTL: 300 });
@@ -12,10 +13,35 @@ class RobloxAPI {
     this.gamesURL = 'https://games.roblox.com';
     this.economyCreatorStatsURL = 'https://economycreatorstats.roblox.com';
     this.engagementPayoutsURL = 'https://engagementpayouts.roblox.com';
+
+    // Team config context (set by routes before API calls)
+    this.currentTeamId = null;
+  }
+
+  /**
+   * Set the current team context for API calls
+   * This should be called by routes before making API calls
+   */
+  setTeamContext(teamId) {
+    this.currentTeamId = teamId;
+    // Also set it for oauth2Service
+    oauth2Service.setTeamContext(teamId);
+  }
+
+  /**
+   * Get the team config (either from current team context or fall back to global)
+   */
+  getTeamConfig() {
+    if (this.currentTeamId) {
+      return teamConfigService.getTeamConfig(this.currentTeamId);
+    }
+    // Fallback to old global config if no team context
+    return configManager.getConfig();
   }
 
   getApiKey() {
-    return configManager.getApiKey();
+    const config = this.getTeamConfig();
+    return config.robloxApiKey || configManager.getApiKey();
   }
 
   /**

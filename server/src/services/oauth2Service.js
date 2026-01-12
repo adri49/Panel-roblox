@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import axios from 'axios';
 import configManager from './configManager.js';
+import teamConfigService from './teamConfigService.js';
 
 /**
  * Service OAuth 2.0 pour Roblox Open Cloud
@@ -17,6 +18,27 @@ class OAuth2Service {
     // Stockage temporaire des sessions OAuth (code_verifier)
     // En production, utiliser Redis ou une DB
     this.pendingSessions = new Map();
+
+    // Team config context
+    this.currentTeamId = null;
+  }
+
+  /**
+   * Set the current team context for OAuth operations
+   */
+  setTeamContext(teamId) {
+    this.currentTeamId = teamId;
+  }
+
+  /**
+   * Get the team config (either from current team context or fall back to global)
+   */
+  getTeamConfig() {
+    if (this.currentTeamId) {
+      return teamConfigService.getTeamConfig(this.currentTeamId);
+    }
+    // Fallback to old global config if no team context
+    return configManager.getConfig();
   }
 
   /**
@@ -59,9 +81,10 @@ class OAuth2Service {
   /**
    * Démarre le flow OAuth - Génère l'URL d'autorisation
    * @param {string[]} scopes - Liste des scopes requis
+   * @param {number} teamId - ID de l'équipe (optionnel)
    * @returns {object} { authUrl, state }
    */
-  getAuthorizationUrl(scopes = ['openid', 'profile']) {
+  getAuthorizationUrl(scopes = ['openid', 'profile'], teamId = null) {
     if (!this.clientId || !this.redirectUri) {
       throw new Error('OAuth non configuré. Configurez Client ID et Redirect URI.');
     }
@@ -70,9 +93,10 @@ class OAuth2Service {
     const codeVerifier = this.generateCodeVerifier();
     const codeChallenge = this.generateCodeChallenge(codeVerifier);
 
-    // Stocker le verifier pour l'utiliser lors du callback
+    // Stocker le verifier ET le teamId pour l'utiliser lors du callback
     this.pendingSessions.set(state, {
       codeVerifier,
+      teamId: teamId || this.currentTeamId,
       timestamp: Date.now()
     });
 
@@ -93,6 +117,7 @@ class OAuth2Service {
 
     console.log('🔐 OAuth Authorization URL generated');
     console.log('   State:', state);
+    console.log('   Team ID:', teamId || this.currentTeamId);
     console.log('   Scopes:', scopes.join(', '));
 
     return { authUrl, state };
@@ -116,7 +141,7 @@ class OAuth2Service {
    * Échange le code d'autorisation contre un access token
    * @param {string} code - Code d'autorisation reçu
    * @param {string} state - State pour vérifier la session
-   * @returns {object} { access_token, refresh_token, expires_in, scope }
+   * @returns {object} { access_token, refresh_token, expires_in, scope, teamId }
    */
   async exchangeCodeForToken(code, state) {
     if (!this.clientId || !this.clientSecret || !this.redirectUri) {
@@ -130,10 +155,12 @@ class OAuth2Service {
     }
 
     const codeVerifier = session.codeVerifier;
+    const teamId = session.teamId;
     this.pendingSessions.delete(state); // Nettoyer la session
 
     try {
       console.log('🔄 Exchanging authorization code for token...');
+      console.log('   Team ID:', teamId);
 
       const response = await axios.post(
         `${this.authURL}/token`,
@@ -158,18 +185,31 @@ class OAuth2Service {
       console.log('   Expires in:', tokenData.expires_in, 'seconds');
       console.log('   Scopes:', tokenData.scope);
 
-      // Sauvegarder les tokens dans la config
-      configManager.updateConfig({
-        oauth: {
-          accessToken: tokenData.access_token,
-          refreshToken: tokenData.refresh_token,
-          expiresAt: Date.now() + (tokenData.expires_in * 1000),
-          scope: tokenData.scope,
-          tokenType: tokenData.token_type
-        }
-      });
+      // Sauvegarder les tokens dans la team config
+      if (teamId) {
+        const expiresAt = Date.now() + (tokenData.expires_in * 1000);
+        teamConfigService.setOAuthTokens(
+          teamId,
+          tokenData.access_token,
+          tokenData.refresh_token,
+          expiresAt,
+          tokenData.scope
+        );
+        console.log('✅ Tokens saved to team config');
+      } else {
+        // Fallback to global config if no teamId
+        configManager.updateConfig({
+          oauth: {
+            accessToken: tokenData.access_token,
+            refreshToken: tokenData.refresh_token,
+            expiresAt: Date.now() + (tokenData.expires_in * 1000),
+            scope: tokenData.scope,
+            tokenType: tokenData.token_type
+          }
+        });
+      }
 
-      return tokenData;
+      return { ...tokenData, teamId };
     } catch (error) {
       console.error('❌ Token exchange failed:', error.response?.data || error.message);
       throw new Error(`Échec de l'échange de token: ${error.response?.data?.error || error.message}`);
@@ -238,9 +278,25 @@ class OAuth2Service {
    * @returns {string} Access token valide
    */
   async getValidAccessToken() {
-    const config = configManager.getConfig();
-    const oauth = config.oauth;
+    const config = this.getTeamConfig();
 
+    // Check team-based OAuth tokens first
+    if (this.currentTeamId && config.oauthAccessToken) {
+      // Vérifier si le token est expiré (avec marge de 5 minutes)
+      const expiresAt = config.oauthExpiresAt || 0;
+      const isExpired = Date.now() >= (expiresAt - 5 * 60 * 1000);
+
+      if (isExpired && config.oauthRefreshToken) {
+        console.log('⚠️ Access token expiré, rafraîchissement automatique...');
+        const newToken = await this.refreshAccessToken();
+        return newToken.access_token;
+      }
+
+      return config.oauthAccessToken;
+    }
+
+    // Fallback to old OAuth structure
+    const oauth = config.oauth;
     if (!oauth || !oauth.accessToken) {
       throw new Error('Pas de token OAuth configuré. Veuillez vous authentifier.');
     }
@@ -268,7 +324,15 @@ class OAuth2Service {
    * Vérifie si on a un access token valide
    */
   hasValidToken() {
-    const config = configManager.getConfig();
+    const config = this.getTeamConfig();
+
+    // Check team-based OAuth tokens first
+    if (this.currentTeamId && config.oauthAccessToken) {
+      const expiresAt = config.oauthExpiresAt || 0;
+      return expiresAt > Date.now();
+    }
+
+    // Fallback to old OAuth structure
     const oauth = config.oauth;
     return !!(oauth && oauth.accessToken && oauth.expiresAt > Date.now());
   }
