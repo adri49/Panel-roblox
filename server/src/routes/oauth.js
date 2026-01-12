@@ -71,9 +71,9 @@ router.post('/config', requireConfigPermission, (req, res) => {
 
     // Sauvegarder la configuration dans la team config
     teamConfigService.updateTeamConfig(req.teamId, {
-      oauthClientId: clientId,
-      oauthClientSecret: clientSecret,
-      oauthRedirectUri: redirectUri
+      oauth_client_id: clientId,  // ✅ snake_case pour la DB
+      oauth_client_secret: clientSecret,  // ✅ snake_case pour la DB
+      oauth_redirect_uri: redirectUri  // ✅ snake_case pour la DB
     });
 
     // Configurer le service OAuth
