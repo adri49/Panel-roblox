@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Settings as SettingsIcon, Save, Plus, Trash2, Key, Hash, RefreshCw, ArrowRight, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
-import { fetchConfig, updateConfig, addUniverseId, removeUniverseId, clearCache, convertPlaceToUniverse, testApiKey } from '../api'
+import { Settings as SettingsIcon, Save, Plus, Trash2, Key, Hash, RefreshCw, ArrowRight, CheckCircle, XCircle, AlertCircle, Shield, LogIn, LogOut } from 'lucide-react'
+import { fetchConfig, updateConfig, addUniverseId, removeUniverseId, clearCache, convertPlaceToUniverse, testApiKey, getOAuthConfig, updateOAuthConfig, startOAuthFlow, revokeOAuthToken, getOAuthStatus } from '../api'
 
 interface ConfigData {
   universeIds: string[]
@@ -29,9 +29,25 @@ const Settings = () => {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
+  // États OAuth 2.0
+  const [oauthClientId, setOauthClientId] = useState('')
+  const [oauthClientSecret, setOauthClientSecret] = useState('')
+  const [oauthRedirectUri, setOauthRedirectUri] = useState('')
+  const [oauthConfig, setOauthConfig] = useState<any>(null)
+  const [oauthStatus, setOauthStatus] = useState<any>(null)
+  const [savingOAuth, setSavingOAuth] = useState(false)
+
   useEffect(() => {
     loadConfig()
+    loadOAuthConfig()
+    checkOAuthCallback()
   }, [])
+
+  useEffect(() => {
+    if (oauthConfig?.hasTokens) {
+      loadOAuthStatus()
+    }
+  }, [oauthConfig])
 
   const loadConfig = async (silent = false) => {
     try {
@@ -181,6 +197,103 @@ const Settings = () => {
     }
   }
 
+  // OAuth 2.0 Functions
+  const loadOAuthConfig = async () => {
+    try {
+      const data = await getOAuthConfig()
+      setOauthConfig(data.config)
+      if (data.config.clientId) {
+        setOauthRedirectUri(data.config.redirectUri || `${window.location.origin}/api/oauth/callback`)
+      }
+    } catch (error) {
+      console.error('Error loading OAuth config:', error)
+    }
+  }
+
+  const loadOAuthStatus = async () => {
+    try {
+      const data = await getOAuthStatus()
+      setOauthStatus(data.status)
+    } catch (error) {
+      console.error('Error loading OAuth status:', error)
+    }
+  }
+
+  const checkOAuthCallback = () => {
+    const params = new URLSearchParams(window.location.search)
+    const oauthSuccess = params.get('oauth_success')
+    const oauthError = params.get('oauth_error')
+
+    if (oauthSuccess) {
+      showMessage('success', 'Connexion OAuth réussie !')
+      loadOAuthConfig()
+      loadOAuthStatus()
+      // Nettoyer l'URL
+      window.history.replaceState({}, '', window.location.pathname)
+    } else if (oauthError) {
+      showMessage('error', `Erreur OAuth: ${oauthError}`)
+      // Nettoyer l'URL
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }
+
+  const handleSaveOAuthConfig = async () => {
+    if (!oauthClientId || !oauthClientSecret || !oauthRedirectUri) {
+      showMessage('error', 'Veuillez remplir tous les champs OAuth')
+      return
+    }
+
+    setSavingOAuth(true)
+    try {
+      await updateOAuthConfig({
+        clientId: oauthClientId,
+        clientSecret: oauthClientSecret,
+        redirectUri: oauthRedirectUri
+      })
+
+      showMessage('success', 'Configuration OAuth sauvegardée')
+      setOauthClientId('')
+      setOauthClientSecret('')
+      loadOAuthConfig()
+    } catch (error: any) {
+      console.error('Error saving OAuth config:', error)
+      showMessage('error', error.response?.data?.error || 'Erreur lors de la sauvegarde')
+    } finally {
+      setSavingOAuth(false)
+    }
+  }
+
+  const handleStartOAuth = async () => {
+    try {
+      const result = await startOAuthFlow()
+      if (result.success && result.authUrl) {
+        // Rediriger vers l'URL d'autorisation Roblox
+        window.location.href = result.authUrl
+      } else {
+        showMessage('error', 'Impossible de démarrer l\'autorisation')
+      }
+    } catch (error: any) {
+      console.error('Error starting OAuth:', error)
+      showMessage('error', error.response?.data?.error || 'Erreur OAuth')
+    }
+  }
+
+  const handleRevokeOAuth = async () => {
+    if (!confirm('Voulez-vous vraiment vous déconnecter ?')) {
+      return
+    }
+
+    try {
+      await revokeOAuthToken()
+      showMessage('success', 'Déconnecté avec succès')
+      loadOAuthConfig()
+      setOauthStatus(null)
+    } catch (error: any) {
+      console.error('Error revoking OAuth:', error)
+      showMessage('error', error.response?.data?.error || 'Erreur lors de la déconnexion')
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -218,6 +331,146 @@ const Settings = () => {
         </div>
 
         <div className="space-y-6">
+          {/* OAuth 2.0 Section - MÉTHODE RECOMMANDÉE */}
+          <div className="border-2 border-blue-500/50 rounded-xl p-6 bg-blue-500/5">
+            <div className="flex items-center gap-2 mb-4">
+              <Shield className="w-6 h-6 text-blue-400" />
+              <h3 className="text-xl font-bold text-white">OAuth 2.0 (Recommandé)</h3>
+              <span className="ml-auto bg-blue-500/20 text-blue-300 text-xs px-2 py-1 rounded-full">Moderne & Sécurisé</span>
+            </div>
+
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-4">
+              <p className="text-blue-200 text-sm">
+                💡 <strong>OAuth 2.0</strong> est la méthode d'authentification moderne recommandée par Roblox.
+                Elle donne accès à <strong>toutes les APIs</strong> incluant economycreatorstats et engagementpayouts.
+              </p>
+            </div>
+
+            {!oauthConfig?.isConfigured ? (
+              // Configuration initiale OAuth
+              <div className="space-y-4">
+                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+                  <p className="text-yellow-200 text-sm mb-2">
+                    📋 <strong>Créez d'abord votre application OAuth sur Roblox:</strong>
+                  </p>
+                  <ol className="text-yellow-200 text-sm list-decimal list-inside space-y-1 ml-4">
+                    <li>Allez sur <a href="https://create.roblox.com/credentials" target="_blank" rel="noopener noreferrer" className="underline">create.roblox.com/credentials</a></li>
+                    <li>Cliquez sur "Create OAuth2 App"</li>
+                    <li>Copiez le Client ID et Client Secret</li>
+                    <li>Configurez le Redirect URI: <code className="bg-black/20 px-1 rounded">{window.location.origin}/api/oauth/callback</code></li>
+                  </ol>
+                </div>
+
+                <div>
+                  <label className="text-white font-semibold mb-2 block">Client ID</label>
+                  <input
+                    type="text"
+                    value={oauthClientId}
+                    onChange={(e) => setOauthClientId(e.target.value)}
+                    placeholder="Entrez le Client ID"
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-white font-semibold mb-2 block">Client Secret</label>
+                  <input
+                    type="password"
+                    value={oauthClientSecret}
+                    onChange={(e) => setOauthClientSecret(e.target.value)}
+                    placeholder="Entrez le Client Secret"
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-white font-semibold mb-2 block">Redirect URI</label>
+                  <input
+                    type="text"
+                    value={oauthRedirectUri}
+                    onChange={(e) => setOauthRedirectUri(e.target.value)}
+                    placeholder="URL de redirection"
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                  />
+                  <p className="text-white/60 text-xs mt-1">
+                    Doit correspondre exactement à l'URL configurée dans Roblox Creator Dashboard
+                  </p>
+                </div>
+
+                <button
+                  onClick={handleSaveOAuthConfig}
+                  disabled={savingOAuth}
+                  className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <Save className="w-5 h-5" />
+                  {savingOAuth ? 'Sauvegarde...' : 'Sauvegarder la configuration OAuth'}
+                </button>
+              </div>
+            ) : (
+              // OAuth configuré - Afficher le statut et le bouton de connexion
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-400" />
+                  <span className="text-white">Application OAuth configurée</span>
+                </div>
+
+                {oauthConfig?.hasTokens && oauthStatus ? (
+                  // Connecté
+                  <div className="space-y-3">
+                    <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle className="w-5 h-5 text-green-400" />
+                        <span className="text-green-300 font-semibold">✅ Connecté via OAuth 2.0</span>
+                      </div>
+                      <p className="text-green-200 text-sm">
+                        Scopes: <code className="bg-black/20 px-1 rounded text-xs">{oauthStatus.scope}</code>
+                      </p>
+                      {oauthStatus.expiresAt && (
+                        <p className="text-green-200 text-sm mt-1">
+                          Expire: {new Date(oauthStatus.expiresAt).toLocaleString('fr-FR')}
+                        </p>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={handleRevokeOAuth}
+                      className="w-full bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 text-red-300 font-semibold py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Déconnecter OAuth
+                    </button>
+                  </div>
+                ) : (
+                  // Pas connecté - Afficher le bouton de connexion
+                  <div className="space-y-3">
+                    <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                      <p className="text-yellow-200 text-sm">
+                        ⚠️ Non connecté. Cliquez ci-dessous pour autoriser l'accès aux APIs Roblox.
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={handleStartOAuth}
+                      className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2"
+                    >
+                      <LogIn className="w-5 h-5" />
+                      Se connecter avec Roblox OAuth
+                    </button>
+
+                    <p className="text-white/60 text-xs text-center">
+                      Vous serez redirigé vers Roblox pour autoriser l'accès
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Séparateur */}
+          <div className="border-t border-white/10 pt-4">
+            <p className="text-white/50 text-sm text-center">Ou utilisez les clés API (méthode alternative)</p>
+          </div>
+
           {/* API Key Section */}
           <div>
             <label className="flex items-center gap-2 text-white font-semibold mb-2">
