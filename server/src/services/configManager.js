@@ -8,7 +8,8 @@ const __dirname = path.dirname(__filename);
 const CONFIG_FILE = path.join(__dirname, '../../config.json');
 
 const defaultConfig = {
-  robloxApiKey: '',
+  robloxApiKey: '', // Clé API Groupe
+  robloxUserApiKey: '', // Clé API Utilisateur (pour economycreatorstats/engagementpayouts)
   universeIds: [],
   groupId: '', // Group ID for revenue/transaction data
   cacheTTL: 300,
@@ -64,6 +65,10 @@ class ConfigManager {
 
   getApiKey() {
     return this.config.robloxApiKey;
+  }
+
+  getUserApiKey() {
+    return this.config.robloxUserApiKey;
   }
 
   getUniverseIds() {
