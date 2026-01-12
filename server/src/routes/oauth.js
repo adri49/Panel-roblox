@@ -1,8 +1,18 @@
 import express from 'express';
 import oauth2Service from '../services/oauth2Service.js';
-import configManager from '../services/configManager.js';
+import teamConfigService from '../services/teamConfigService.js';
+import { extractTeamId, requireConfigPermission } from '../middleware/team.js';
 
 const router = express.Router();
+
+// Appliquer le middleware de team ID à toutes les routes (sauf callback qui est public)
+router.use((req, res, next) => {
+  // Skip team middleware for callback route
+  if (req.path === '/callback') {
+    return next();
+  }
+  extractTeamId(req, res, next);
+});
 
 /**
  * GET /api/oauth/config
@@ -10,20 +20,19 @@ const router = express.Router();
  */
 router.get('/config', (req, res) => {
   try {
-    const oauthConfig = configManager.getOAuthConfig();
-    const hasTokens = configManager.hasOAuthTokens();
-    const tokens = configManager.getOAuthTokens();
+    oauth2Service.setTeamContext(req.teamId);
+    const config = teamConfigService.getTeamConfig(req.teamId);
 
     res.json({
       success: true,
       config: {
-        clientId: oauthConfig.clientId,
-        redirectUri: oauthConfig.redirectUri,
-        hasClientSecret: !!oauthConfig.clientSecret,
-        isConfigured: oauth2Service.isConfigured(),
-        hasTokens: hasTokens,
-        tokenExpiry: tokens?.expiresAt || null,
-        scopes: tokens?.scope || null
+        clientId: config.oauthClientId || '',
+        redirectUri: config.oauthRedirectUri || '',
+        hasClientSecret: !!config.oauthClientSecret,
+        isConfigured: !!(config.oauthClientId && config.oauthClientSecret),
+        hasTokens: !!config.oauthAccessToken,
+        tokenExpiry: config.oauthExpiresAt || null,
+        scopes: config.oauthScope || null
       }
     });
   } catch (error) {
@@ -39,7 +48,7 @@ router.get('/config', (req, res) => {
  * POST /api/oauth/config
  * Configure les credentials OAuth
  */
-router.post('/config', (req, res) => {
+router.post('/config', requireConfigPermission, (req, res) => {
   try {
     const { clientId, clientSecret, redirectUri } = req.body;
 
@@ -60,10 +69,15 @@ router.post('/config', (req, res) => {
       });
     }
 
-    // Sauvegarder la configuration
-    configManager.setOAuthConfig(clientId, clientSecret, redirectUri);
+    // Sauvegarder la configuration dans la team config
+    teamConfigService.updateTeamConfig(req.teamId, {
+      oauthClientId: clientId,
+      oauthClientSecret: clientSecret,
+      oauthRedirectUri: redirectUri
+    });
 
     // Configurer le service OAuth
+    oauth2Service.setTeamContext(req.teamId);
     oauth2Service.configure(clientId, clientSecret, redirectUri);
 
     res.json({
@@ -87,6 +101,19 @@ router.post('/authorize', (req, res) => {
   try {
     const { scopes } = req.body;
 
+    // Set team context and configure OAuth
+    oauth2Service.setTeamContext(req.teamId);
+    const config = teamConfigService.getTeamConfig(req.teamId);
+
+    if (!config.oauthClientId || !config.oauthClientSecret || !config.oauthRedirectUri) {
+      return res.status(400).json({
+        success: false,
+        error: 'OAuth non configuré pour cette équipe'
+      });
+    }
+
+    oauth2Service.configure(config.oauthClientId, config.oauthClientSecret, config.oauthRedirectUri);
+
     // Scopes par défaut pour accéder aux APIs de revenus
     const defaultScopes = [
       'openid',
@@ -97,7 +124,7 @@ router.post('/authorize', (req, res) => {
 
     const requestedScopes = scopes || defaultScopes;
 
-    const { authUrl, state } = oauth2Service.getAuthorizationUrl(requestedScopes);
+    const { authUrl, state } = oauth2Service.getAuthorizationUrl(requestedScopes, req.teamId);
 
     res.json({
       success: true,

@@ -1,19 +1,25 @@
 import express from 'express';
-import configManager from '../services/configManager.js';
+import teamConfigService from '../services/teamConfigService.js';
 import robloxApi from '../services/robloxApi.js';
+import { extractTeamId, requireConfigPermission } from '../middleware/team.js';
 
 const router = express.Router();
+
+// Appliquer le middleware de team ID à toutes les routes
+router.use(extractTeamId);
 
 // Get current configuration (sanitized - no API key exposed)
 router.get('/', (req, res) => {
   try {
-    const config = configManager.getConfig();
+    const config = teamConfigService.getTeamConfig(req.teamId);
     res.json({
-      universeIds: config.universeIds,
+      universeIds: config.universeIds || [],
       groupId: config.groupId || '',
-      cacheTTL: config.cacheTTL,
+      cacheTTL: config.cacheTTL || 300,
       hasApiKey: !!config.robloxApiKey,
       hasUserApiKey: !!config.robloxUserApiKey,
+      hasOAuth: !!config.oauthAccessToken,
+      oauthClientId: config.oauthClientId || '',
       lastUpdated: config.lastUpdated
     });
   } catch (error) {
@@ -22,58 +28,57 @@ router.get('/', (req, res) => {
 });
 
 // Update configuration
-router.post('/', (req, res) => {
+router.post('/', requireConfigPermission, (req, res) => {
   try {
     const { robloxApiKey, robloxUserApiKey, universeIds, cacheTTL } = req.body;
 
-    const newConfig = {};
+    const updates = {};
 
     if (robloxApiKey !== undefined) {
-      newConfig.robloxApiKey = robloxApiKey;
+      updates.robloxApiKey = robloxApiKey;
     }
 
     if (robloxUserApiKey !== undefined) {
-      newConfig.robloxUserApiKey = robloxUserApiKey;
+      updates.robloxUserApiKey = robloxUserApiKey;
     }
 
     if (universeIds !== undefined) {
       if (!Array.isArray(universeIds)) {
         return res.status(400).json({ error: 'universeIds must be an array' });
       }
-      newConfig.universeIds = universeIds.map(id => id.toString().trim()).filter(id => id);
+      updates.universeIds = JSON.stringify(universeIds.map(id => id.toString().trim()).filter(id => id));
     }
 
     if (cacheTTL !== undefined) {
-      newConfig.cacheTTL = parseInt(cacheTTL) || 300;
+      updates.cacheTTL = parseInt(cacheTTL) || 300;
     }
 
-    const success = configManager.saveConfig(newConfig);
+    teamConfigService.updateTeamConfig(req.teamId, updates);
 
-    if (success) {
-      // Clear cache when configuration changes
-      robloxApi.clearCache();
+    // Clear cache when configuration changes
+    robloxApi.clearCache();
 
-      res.json({
-        success: true,
-        message: 'Configuration updated successfully',
-        config: {
-          universeIds: configManager.getUniverseIds(),
-          cacheTTL: configManager.getCacheTTL(),
-          hasApiKey: !!configManager.getApiKey(),
-          hasUserApiKey: !!configManager.getUserApiKey(),
-          lastUpdated: configManager.getConfig().lastUpdated
-        }
-      });
-    } else {
-      res.status(500).json({ error: 'Failed to save configuration' });
-    }
+    const config = teamConfigService.getTeamConfig(req.teamId);
+
+    res.json({
+      success: true,
+      message: 'Configuration updated successfully',
+      config: {
+        universeIds: config.universeIds || [],
+        cacheTTL: config.cacheTTL || 300,
+        hasApiKey: !!config.robloxApiKey,
+        hasUserApiKey: !!config.robloxUserApiKey,
+        hasOAuth: !!config.oauthAccessToken,
+        lastUpdated: config.lastUpdated
+      }
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // Add a universe ID
-router.post('/universe', (req, res) => {
+router.post('/universe', requireConfigPermission, (req, res) => {
   try {
     const { universeId } = req.body;
 
@@ -82,7 +87,8 @@ router.post('/universe', (req, res) => {
     }
 
     const trimmedId = universeId.toString().trim();
-    const currentIds = configManager.getUniverseIds();
+    const config = teamConfigService.getTeamConfig(req.teamId);
+    const currentIds = config.universeIds || [];
 
     // Check for duplicates
     if (currentIds.includes(trimmedId)) {
@@ -92,13 +98,15 @@ router.post('/universe', (req, res) => {
       });
     }
 
-    configManager.addUniverseId(trimmedId);
+    teamConfigService.addUniverseId(req.teamId, trimmedId);
     robloxApi.clearCache();
+
+    const updatedConfig = teamConfigService.getTeamConfig(req.teamId);
 
     res.json({
       success: true,
       message: 'Universe ID added',
-      universeIds: configManager.getUniverseIds()
+      universeIds: updatedConfig.universeIds || []
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -106,17 +114,19 @@ router.post('/universe', (req, res) => {
 });
 
 // Remove a universe ID
-router.delete('/universe/:universeId', (req, res) => {
+router.delete('/universe/:universeId', requireConfigPermission, (req, res) => {
   try {
     const { universeId } = req.params;
 
-    configManager.removeUniverseId(universeId);
+    teamConfigService.removeUniverseId(req.teamId, universeId);
     robloxApi.clearCache();
+
+    const config = teamConfigService.getTeamConfig(req.teamId);
 
     res.json({
       success: true,
       message: 'Universe ID removed',
-      universeIds: configManager.getUniverseIds()
+      universeIds: config.universeIds || []
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -157,21 +167,25 @@ router.get('/convert-place/:placeId', async (req, res) => {
 
 // Get/Set Group ID
 router.get('/group-id', (req, res) => {
-  const groupId = configManager.getGroupId();
-  res.json({ groupId: groupId || '' });
+  const config = teamConfigService.getTeamConfig(req.teamId);
+  res.json({ groupId: config.groupId || '' });
 });
 
-router.post('/group-id', (req, res) => {
+router.post('/group-id', requireConfigPermission, (req, res) => {
   try {
     const { groupId } = req.body;
-    configManager.setGroupId(groupId);
+    teamConfigService.updateTeamConfig(req.teamId, { groupId });
+
+    const config = teamConfigService.getTeamConfig(req.teamId);
+
     res.json({
       success: true,
-      groupId,
+      groupId: config.groupId,
       config: {
-        groupId: configManager.getGroupId(),
-        universeIds: configManager.getUniverseIds(),
-        hasApiKey: !!configManager.getApiKey()
+        groupId: config.groupId || '',
+        universeIds: config.universeIds || [],
+        hasApiKey: !!config.robloxApiKey,
+        hasOAuth: !!config.oauthAccessToken
       }
     });
   } catch (error) {
