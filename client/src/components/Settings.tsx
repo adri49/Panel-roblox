@@ -6,6 +6,7 @@ interface ConfigData {
   universeIds: string[]
   cacheTTL: number
   hasApiKey: boolean
+  hasUserApiKey: boolean
   lastUpdated: string | null
 }
 
@@ -14,9 +15,11 @@ const Settings = () => {
     universeIds: [],
     cacheTTL: 300,
     hasApiKey: false,
+    hasUserApiKey: false,
     lastUpdated: null
   })
   const [apiKey, setApiKey] = useState('')
+  const [userApiKey, setUserApiKey] = useState('')
   const [newUniverseId, setNewUniverseId] = useState('')
   const [placeId, setPlaceId] = useState('')
   const [converting, setConverting] = useState(false)
@@ -61,6 +64,10 @@ const Settings = () => {
         updates.robloxApiKey = apiKey
       }
 
+      if (userApiKey) {
+        updates.robloxUserApiKey = userApiKey
+      }
+
       const result = await updateConfig(updates)
 
       // Update local state with server response instead of reloading
@@ -70,6 +77,7 @@ const Settings = () => {
 
       showMessage('success', 'Configuration enregistrée avec succès !')
       setApiKey('')
+      setUserApiKey('')
     } catch (error) {
       console.error('Error saving config:', error)
       showMessage('error', 'Erreur lors de l\'enregistrement')
@@ -214,28 +222,51 @@ const Settings = () => {
           <div>
             <label className="flex items-center gap-2 text-white font-semibold mb-2">
               <Key className="w-5 h-5" />
-              Clé API Roblox
+              Clé API Roblox (Groupe)
             </label>
             <input
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder={config.hasApiKey ? "Clé API configurée - laissez vide pour ne pas changer" : "Entrez votre clé API Roblox"}
+              placeholder={config.hasApiKey ? "Clé API Groupe configurée - laissez vide pour ne pas changer" : "Entrez votre clé API Groupe"}
               className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50"
             />
             <p className="text-white/60 text-sm mt-2">
-              {config.hasApiKey ? '✅ Clé API configurée' : '⚠️ Aucune clé API configurée'}
+              {config.hasApiKey ? '✅ Clé API Groupe configurée' : '⚠️ Aucune clé API Groupe configurée'}
             </p>
+          </div>
+
+          {/* User API Key Section */}
+          <div>
+            <label className="flex items-center gap-2 text-white font-semibold mb-2">
+              <Key className="w-5 h-5" />
+              Clé API Roblox (Utilisateur)
+            </label>
+            <input
+              type="password"
+              value={userApiKey}
+              onChange={(e) => setUserApiKey(e.target.value)}
+              placeholder={config.hasUserApiKey ? "Clé API Utilisateur configurée - laissez vide pour ne pas changer" : "Entrez votre clé API Utilisateur"}
+              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50"
+            />
+            <p className="text-white/60 text-sm mt-2">
+              {config.hasUserApiKey ? '✅ Clé API Utilisateur configurée' : '⚠️ Aucune clé API Utilisateur configurée'}
+            </p>
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mt-2">
+              <p className="text-blue-200 text-sm">
+                💡 <strong>Important:</strong> La clé Utilisateur est nécessaire pour accéder aux statistiques de revenus (economycreatorstats, engagementpayouts). Les clés Groupe ont des limitations.
+              </p>
+            </div>
 
             {/* Test API Key Button */}
-            {config.hasApiKey && (
+            {(config.hasApiKey || config.hasUserApiKey) && (
               <button
                 onClick={handleTestApiKey}
                 disabled={testing}
                 className="mt-3 w-full bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/50 text-blue-200 font-semibold py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 <AlertCircle className="w-4 h-4" />
-                {testing ? 'Test en cours...' : 'Tester les permissions de la clé API'}
+                {testing ? 'Test en cours...' : 'Tester les permissions des clés API'}
               </button>
             )}
 
