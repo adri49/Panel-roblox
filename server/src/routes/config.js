@@ -13,6 +13,7 @@ router.get('/', (req, res) => {
       groupId: config.groupId || '',
       cacheTTL: config.cacheTTL,
       hasApiKey: !!config.robloxApiKey,
+      hasUserApiKey: !!config.robloxUserApiKey,
       lastUpdated: config.lastUpdated
     });
   } catch (error) {
@@ -23,12 +24,16 @@ router.get('/', (req, res) => {
 // Update configuration
 router.post('/', (req, res) => {
   try {
-    const { robloxApiKey, universeIds, cacheTTL } = req.body;
+    const { robloxApiKey, robloxUserApiKey, universeIds, cacheTTL } = req.body;
 
     const newConfig = {};
 
     if (robloxApiKey !== undefined) {
       newConfig.robloxApiKey = robloxApiKey;
+    }
+
+    if (robloxUserApiKey !== undefined) {
+      newConfig.robloxUserApiKey = robloxUserApiKey;
     }
 
     if (universeIds !== undefined) {
@@ -55,6 +60,7 @@ router.post('/', (req, res) => {
           universeIds: configManager.getUniverseIds(),
           cacheTTL: configManager.getCacheTTL(),
           hasApiKey: !!configManager.getApiKey(),
+          hasUserApiKey: !!configManager.getUserApiKey(),
           lastUpdated: configManager.getConfig().lastUpdated
         }
       });

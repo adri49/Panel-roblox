@@ -388,41 +388,50 @@ class RobloxAPI {
     const cached = cache.get(cacheKey);
     if (cached) return cached;
 
-    const apiKey = this.getApiKey();
-    if (!apiKey) {
-      throw new Error('API key required for economy stats');
-    }
+    const groupApiKey = this.getApiKey();
+    const userApiKey = configManager.getUserApiKey();
 
-    const headers = {
-      'x-api-key': apiKey
-    };
+    // Try both API keys: User key first (more likely to work), then Group key
+    const apiKeys = [
+      { key: userApiKey, type: 'Utilisateur' },
+      { key: groupApiKey, type: 'Groupe' }
+    ].filter(k => k.key);
+
+    if (apiKeys.length === 0) {
+      throw new Error('Aucune clé API configurée');
+    }
 
     console.log(`🔍 Testing economycreatorstats API for universe ${universeId}...`);
+    const url = `${this.economyCreatorStatsURL}/v1/universes/${universeId}/stats`;
 
-    try {
-      const url = `${this.economyCreatorStatsURL}/v1/universes/${universeId}/stats`;
-      console.log(`  📤 URL: ${url}`);
-      console.log(`  🔑 Using API key authentication`);
+    for (const { key, type } of apiKeys) {
+      try {
+        console.log(`  🔑 Essai avec clé API ${type} (${key.substring(0, 10)}...)`);
+        const response = await axios.get(url, {
+          headers: { 'x-api-key': key }
+        });
 
-      const response = await axios.get(url, { headers });
+        const statsData = {
+          universeId,
+          data: response.data,
+          source: 'economycreatorstats API',
+          apiKeyType: type,
+          fetchedAt: new Date().toISOString()
+        };
 
-      const statsData = {
-        universeId,
-        data: response.data,
-        source: 'economycreatorstats API',
-        fetchedAt: new Date().toISOString()
-      };
-
-      cache.set(cacheKey, statsData, 300);
-      console.log(`  ✅ Success! Data:`, JSON.stringify(response.data, null, 2));
-      return statsData;
-    } catch (error) {
-      console.log(`  ❌ Failed: ${error.response?.status} ${error.response?.statusText}`);
-      if (error.response?.data) {
-        console.log(`  📋 Error details:`, JSON.stringify(error.response.data, null, 2));
+        cache.set(cacheKey, statsData, 300);
+        console.log(`  ✅ Succès avec clé API ${type}!`);
+        console.log(`  📊 Data:`, JSON.stringify(response.data, null, 2));
+        return statsData;
+      } catch (error) {
+        console.log(`  ❌ Échec avec clé ${type}: ${error.response?.status} ${error.response?.statusText}`);
+        if (error.response?.data) {
+          console.log(`  📋 Détails:`, JSON.stringify(error.response.data, null, 2));
+        }
       }
-      throw new Error(`economycreatorstats API failed: ${error.response?.status} - ${error.response?.data?.message || error.message}`);
     }
+
+    throw new Error('economycreatorstats API a échoué avec toutes les clés API');
   }
 
   async getEngagementPayouts(universeId) {
@@ -430,41 +439,50 @@ class RobloxAPI {
     const cached = cache.get(cacheKey);
     if (cached) return cached;
 
-    const apiKey = this.getApiKey();
-    if (!apiKey) {
-      throw new Error('API key required for engagement payouts');
-    }
+    const groupApiKey = this.getApiKey();
+    const userApiKey = configManager.getUserApiKey();
 
-    const headers = {
-      'x-api-key': apiKey
-    };
+    // Try both API keys: User key first (more likely to work), then Group key
+    const apiKeys = [
+      { key: userApiKey, type: 'Utilisateur' },
+      { key: groupApiKey, type: 'Groupe' }
+    ].filter(k => k.key);
+
+    if (apiKeys.length === 0) {
+      throw new Error('Aucune clé API configurée');
+    }
 
     console.log(`🔍 Testing engagementpayouts API for universe ${universeId}...`);
+    const url = `${this.engagementPayoutsURL}/v1/universes/${universeId}/engagement-payout`;
 
-    try {
-      const url = `${this.engagementPayoutsURL}/v1/universes/${universeId}/engagement-payout`;
-      console.log(`  📤 URL: ${url}`);
-      console.log(`  🔑 Using API key authentication`);
+    for (const { key, type } of apiKeys) {
+      try {
+        console.log(`  🔑 Essai avec clé API ${type} (${key.substring(0, 10)}...)`);
+        const response = await axios.get(url, {
+          headers: { 'x-api-key': key }
+        });
 
-      const response = await axios.get(url, { headers });
+        const payoutData = {
+          universeId,
+          data: response.data,
+          source: 'engagementpayouts API',
+          apiKeyType: type,
+          fetchedAt: new Date().toISOString()
+        };
 
-      const payoutData = {
-        universeId,
-        data: response.data,
-        source: 'engagementpayouts API',
-        fetchedAt: new Date().toISOString()
-      };
-
-      cache.set(cacheKey, payoutData, 300);
-      console.log(`  ✅ Success! Data:`, JSON.stringify(response.data, null, 2));
-      return payoutData;
-    } catch (error) {
-      console.log(`  ❌ Failed: ${error.response?.status} ${error.response?.statusText}`);
-      if (error.response?.data) {
-        console.log(`  📋 Error details:`, JSON.stringify(error.response.data, null, 2));
+        cache.set(cacheKey, payoutData, 300);
+        console.log(`  ✅ Succès avec clé API ${type}!`);
+        console.log(`  📊 Data:`, JSON.stringify(response.data, null, 2));
+        return payoutData;
+      } catch (error) {
+        console.log(`  ❌ Échec avec clé ${type}: ${error.response?.status} ${error.response?.statusText}`);
+        if (error.response?.data) {
+          console.log(`  📋 Détails:`, JSON.stringify(error.response.data, null, 2));
+        }
       }
-      throw new Error(`engagementpayouts API failed: ${error.response?.status} - ${error.response?.data?.message || error.message}`);
     }
+
+    throw new Error('engagementpayouts API a échoué avec toutes les clés API');
   }
 
   async getGroupRevenue(groupId, timeFrame = 'Day') {
