@@ -23,10 +23,23 @@ class TeamConfigService {
       return this.getTeamConfig(teamId);
     }
 
-    // Parser universe_ids JSON
+    // Convertir snake_case vers camelCase et parser JSON
     return {
-      ...config,
-      universeIds: JSON.parse(config.universe_ids || '[]')
+      id: config.id,
+      teamId: config.team_id,
+      robloxApiKey: config.roblox_api_key,
+      robloxUserApiKey: config.roblox_user_api_key,
+      groupId: config.group_id,
+      cacheTTL: config.cache_ttl,
+      universeIds: JSON.parse(config.universe_ids || '[]'),
+      oauthClientId: config.oauth_client_id,
+      oauthClientSecret: config.oauth_client_secret,
+      oauthRedirectUri: config.oauth_redirect_uri,
+      oauthAccessToken: config.oauth_access_token,
+      oauthRefreshToken: config.oauth_refresh_token,
+      oauthExpiresAt: config.oauth_expires_at,
+      oauthScope: config.oauth_scope,
+      lastUpdated: config.last_updated
     };
   }
 

@@ -35,22 +35,22 @@ router.post('/', requireConfigPermission, (req, res) => {
     const updates = {};
 
     if (robloxApiKey !== undefined) {
-      updates.robloxApiKey = robloxApiKey;
+      updates.roblox_api_key = robloxApiKey;  // ✅ snake_case pour la DB
     }
 
     if (robloxUserApiKey !== undefined) {
-      updates.robloxUserApiKey = robloxUserApiKey;
+      updates.roblox_user_api_key = robloxUserApiKey;  // ✅ snake_case pour la DB
     }
 
     if (universeIds !== undefined) {
       if (!Array.isArray(universeIds)) {
         return res.status(400).json({ error: 'universeIds must be an array' });
       }
-      updates.universeIds = JSON.stringify(universeIds.map(id => id.toString().trim()).filter(id => id));
+      updates.universe_ids = JSON.stringify(universeIds.map(id => id.toString().trim()).filter(id => id));
     }
 
     if (cacheTTL !== undefined) {
-      updates.cacheTTL = parseInt(cacheTTL) || 300;
+      updates.cache_ttl = parseInt(cacheTTL) || 300;  // ✅ snake_case pour la DB
     }
 
     teamConfigService.updateTeamConfig(req.teamId, updates);
@@ -174,7 +174,7 @@ router.get('/group-id', (req, res) => {
 router.post('/group-id', requireConfigPermission, (req, res) => {
   try {
     const { groupId } = req.body;
-    teamConfigService.updateTeamConfig(req.teamId, { groupId });
+    teamConfigService.updateTeamConfig(req.teamId, { group_id: groupId });  // ✅ snake_case pour la DB
 
     const config = teamConfigService.getTeamConfig(req.teamId);
 
