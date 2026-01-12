@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import Dashboard from './components/Dashboard'
 import SalesPanel from './components/SalesPanel'
 import Settings from './components/Settings'
+import Privacy from './components/Privacy'
+import Terms from './components/Terms'
 import { GameStats } from './types'
 import { fetchAllStats, clearCache } from './api'
 import { BarChart3, RefreshCw } from 'lucide-react'
@@ -12,6 +14,26 @@ function App() {
   const [refreshing, setRefreshing] = useState(false)
   const [activeTab, setActiveTab] = useState<'dashboard' | 'sales' | 'settings'>('dashboard')
   const [nextRefresh, setNextRefresh] = useState(60)
+  const [currentPath, setCurrentPath] = useState(window.location.pathname)
+
+  // Détection des pages spéciales (Privacy, Terms)
+  useEffect(() => {
+    const handleLocationChange = () => {
+      setCurrentPath(window.location.pathname)
+    }
+
+    window.addEventListener('popstate', handleLocationChange)
+    return () => window.removeEventListener('popstate', handleLocationChange)
+  }, [])
+
+  // Si on est sur /privacy ou /terms, afficher directement ces pages
+  if (currentPath === '/privacy') {
+    return <Privacy />
+  }
+
+  if (currentPath === '/terms') {
+    return <Terms />
+  }
 
   useEffect(() => {
     loadStats()
