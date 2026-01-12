@@ -1,6 +1,7 @@
 import axios from 'axios';
 import NodeCache from 'node-cache';
 import configManager from './configManager.js';
+import oauth2Service from './oauth2Service.js';
 
 const cache = new NodeCache({ stdTTL: 300 });
 
@@ -15,6 +16,39 @@ class RobloxAPI {
 
   getApiKey() {
     return configManager.getApiKey();
+  }
+
+  /**
+   * Obtient les headers d'authentification (OAuth prioritaire, sinon API Key)
+   * @param {string} fallbackApiKey - Clé API de fallback si OAuth non disponible
+   * @returns {Promise<object>} Headers d'authentification
+   */
+  async getAuthHeaders(fallbackApiKey = null) {
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+
+    // Essayer OAuth en priorité
+    try {
+      if (oauth2Service.hasValidToken()) {
+        const accessToken = await oauth2Service.getValidAccessToken();
+        headers['Authorization'] = `Bearer ${accessToken}`;
+        console.log('🔐 Using OAuth 2.0 token for authentication');
+        return headers;
+      }
+    } catch (error) {
+      console.log('⚠️  OAuth token unavailable, falling back to API key:', error.message);
+    }
+
+    // Fallback sur API Key
+    const apiKey = fallbackApiKey || this.getApiKey();
+    if (apiKey) {
+      headers['x-api-key'] = apiKey;
+      console.log('🔑 Using API Key for authentication');
+      return headers;
+    }
+
+    throw new Error('Aucune méthode d\'authentification disponible (OAuth ou API Key requise)');
   }
 
   clearCache() {
@@ -388,25 +422,49 @@ class RobloxAPI {
     const cached = cache.get(cacheKey);
     if (cached) return cached;
 
+    console.log(`🔍 Fetching economycreatorstats API for universe ${universeId}...`);
+    const url = `${this.economyCreatorStatsURL}/v1/universes/${universeId}/stats`;
+
+    // Méthode 1: Essayer OAuth 2.0 en priorité
+    try {
+      if (oauth2Service.hasValidToken()) {
+        const headers = await this.getAuthHeaders();
+        console.log('  🔐 Trying with OAuth 2.0...');
+
+        const response = await axios.get(url, { headers });
+
+        const statsData = {
+          universeId,
+          data: response.data,
+          source: 'economycreatorstats API',
+          authMethod: 'OAuth 2.0',
+          fetchedAt: new Date().toISOString()
+        };
+
+        cache.set(cacheKey, statsData, 300);
+        console.log('  ✅ Success with OAuth 2.0!');
+        console.log(`  📊 Data:`, JSON.stringify(response.data, null, 2));
+        return statsData;
+      }
+    } catch (error) {
+      console.log(`  ❌ OAuth 2.0 failed: ${error.response?.status} ${error.response?.statusText}`);
+      if (error.response?.data) {
+        console.log(`  📋 Details:`, JSON.stringify(error.response.data, null, 2));
+      }
+    }
+
+    // Méthode 2: Fallback sur API Keys (User puis Group)
     const groupApiKey = this.getApiKey();
     const userApiKey = configManager.getUserApiKey();
 
-    // Try both API keys: User key first (more likely to work), then Group key
     const apiKeys = [
       { key: userApiKey, type: 'Utilisateur' },
       { key: groupApiKey, type: 'Groupe' }
     ].filter(k => k.key);
 
-    if (apiKeys.length === 0) {
-      throw new Error('Aucune clé API configurée');
-    }
-
-    console.log(`🔍 Testing economycreatorstats API for universe ${universeId}...`);
-    const url = `${this.economyCreatorStatsURL}/v1/universes/${universeId}/stats`;
-
     for (const { key, type } of apiKeys) {
       try {
-        console.log(`  🔑 Essai avec clé API ${type} (${key.substring(0, 10)}...)`);
+        console.log(`  🔑 Trying with ${type} API Key (${key.substring(0, 10)}...)`);
         const response = await axios.get(url, {
           headers: { 'x-api-key': key }
         });
@@ -415,23 +473,23 @@ class RobloxAPI {
           universeId,
           data: response.data,
           source: 'economycreatorstats API',
-          apiKeyType: type,
+          authMethod: `API Key (${type})`,
           fetchedAt: new Date().toISOString()
         };
 
         cache.set(cacheKey, statsData, 300);
-        console.log(`  ✅ Succès avec clé API ${type}!`);
+        console.log(`  ✅ Success with ${type} API Key!`);
         console.log(`  📊 Data:`, JSON.stringify(response.data, null, 2));
         return statsData;
       } catch (error) {
-        console.log(`  ❌ Échec avec clé ${type}: ${error.response?.status} ${error.response?.statusText}`);
+        console.log(`  ❌ ${type} API Key failed: ${error.response?.status} ${error.response?.statusText}`);
         if (error.response?.data) {
-          console.log(`  📋 Détails:`, JSON.stringify(error.response.data, null, 2));
+          console.log(`  📋 Details:`, JSON.stringify(error.response.data, null, 2));
         }
       }
     }
 
-    throw new Error('economycreatorstats API a échoué avec toutes les clés API');
+    throw new Error('economycreatorstats API failed with all authentication methods (OAuth + API Keys)');
   }
 
   async getEngagementPayouts(universeId) {
@@ -439,25 +497,49 @@ class RobloxAPI {
     const cached = cache.get(cacheKey);
     if (cached) return cached;
 
+    console.log(`🔍 Fetching engagementpayouts API for universe ${universeId}...`);
+    const url = `${this.engagementPayoutsURL}/v1/universes/${universeId}/engagement-payout`;
+
+    // Méthode 1: Essayer OAuth 2.0 en priorité
+    try {
+      if (oauth2Service.hasValidToken()) {
+        const headers = await this.getAuthHeaders();
+        console.log('  🔐 Trying with OAuth 2.0...');
+
+        const response = await axios.get(url, { headers });
+
+        const payoutData = {
+          universeId,
+          data: response.data,
+          source: 'engagementpayouts API',
+          authMethod: 'OAuth 2.0',
+          fetchedAt: new Date().toISOString()
+        };
+
+        cache.set(cacheKey, payoutData, 300);
+        console.log('  ✅ Success with OAuth 2.0!');
+        console.log(`  📊 Data:`, JSON.stringify(response.data, null, 2));
+        return payoutData;
+      }
+    } catch (error) {
+      console.log(`  ❌ OAuth 2.0 failed: ${error.response?.status} ${error.response?.statusText}`);
+      if (error.response?.data) {
+        console.log(`  📋 Details:`, JSON.stringify(error.response.data, null, 2));
+      }
+    }
+
+    // Méthode 2: Fallback sur API Keys (User puis Group)
     const groupApiKey = this.getApiKey();
     const userApiKey = configManager.getUserApiKey();
 
-    // Try both API keys: User key first (more likely to work), then Group key
     const apiKeys = [
       { key: userApiKey, type: 'Utilisateur' },
       { key: groupApiKey, type: 'Groupe' }
     ].filter(k => k.key);
 
-    if (apiKeys.length === 0) {
-      throw new Error('Aucune clé API configurée');
-    }
-
-    console.log(`🔍 Testing engagementpayouts API for universe ${universeId}...`);
-    const url = `${this.engagementPayoutsURL}/v1/universes/${universeId}/engagement-payout`;
-
     for (const { key, type } of apiKeys) {
       try {
-        console.log(`  🔑 Essai avec clé API ${type} (${key.substring(0, 10)}...)`);
+        console.log(`  🔑 Trying with ${type} API Key (${key.substring(0, 10)}...)`);
         const response = await axios.get(url, {
           headers: { 'x-api-key': key }
         });
@@ -466,23 +548,23 @@ class RobloxAPI {
           universeId,
           data: response.data,
           source: 'engagementpayouts API',
-          apiKeyType: type,
+          authMethod: `API Key (${type})`,
           fetchedAt: new Date().toISOString()
         };
 
         cache.set(cacheKey, payoutData, 300);
-        console.log(`  ✅ Succès avec clé API ${type}!`);
+        console.log(`  ✅ Success with ${type} API Key!`);
         console.log(`  📊 Data:`, JSON.stringify(response.data, null, 2));
         return payoutData;
       } catch (error) {
-        console.log(`  ❌ Échec avec clé ${type}: ${error.response?.status} ${error.response?.statusText}`);
+        console.log(`  ❌ ${type} API Key failed: ${error.response?.status} ${error.response?.statusText}`);
         if (error.response?.data) {
-          console.log(`  📋 Détails:`, JSON.stringify(error.response.data, null, 2));
+          console.log(`  📋 Details:`, JSON.stringify(error.response.data, null, 2));
         }
       }
     }
 
-    throw new Error('engagementpayouts API a échoué avec toutes les clés API');
+    throw new Error('engagementpayouts API failed with all authentication methods (OAuth + API Keys)');
   }
 
   async getGroupRevenue(groupId, timeFrame = 'Day') {

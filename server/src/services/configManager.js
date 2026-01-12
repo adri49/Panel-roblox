@@ -13,7 +13,12 @@ const defaultConfig = {
   universeIds: [],
   groupId: '', // Group ID for revenue/transaction data
   cacheTTL: 300,
-  lastUpdated: null
+  lastUpdated: null,
+  // Configuration OAuth 2.0
+  oauthClientId: '',
+  oauthClientSecret: '',
+  oauthRedirectUri: '',
+  oauth: null // Stockage des tokens OAuth { accessToken, refreshToken, expiresAt, scope, tokenType }
 };
 
 class ConfigManager {
@@ -98,6 +103,51 @@ class ConfigManager {
   removeUniverseId(universeId) {
     this.config.universeIds = this.config.universeIds.filter(id => id !== universeId);
     this.saveConfig(this.config);
+  }
+
+  // Méthodes OAuth 2.0
+  getOAuthConfig() {
+    return {
+      clientId: this.config.oauthClientId,
+      clientSecret: this.config.oauthClientSecret,
+      redirectUri: this.config.oauthRedirectUri
+    };
+  }
+
+  setOAuthConfig(clientId, clientSecret, redirectUri) {
+    this.config.oauthClientId = clientId;
+    this.config.oauthClientSecret = clientSecret;
+    this.config.oauthRedirectUri = redirectUri;
+    this.saveConfig(this.config);
+  }
+
+  getOAuthTokens() {
+    return this.config.oauth;
+  }
+
+  setOAuthTokens(oauth) {
+    this.config.oauth = oauth;
+    this.saveConfig(this.config);
+  }
+
+  hasOAuthTokens() {
+    return !!(this.config.oauth && this.config.oauth.accessToken);
+  }
+
+  clearOAuthTokens() {
+    this.config.oauth = null;
+    this.saveConfig(this.config);
+  }
+
+  // Méthode générique pour mettre à jour n'importe quelle partie de la config
+  updateConfig(updates) {
+    this.config = {
+      ...this.config,
+      ...updates,
+      lastUpdated: new Date().toISOString()
+    };
+    this.saveConfig(this.config);
+    return this.config;
   }
 }
 

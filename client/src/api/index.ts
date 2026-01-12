@@ -62,3 +62,38 @@ export const testApiKey = async () => {
   const response = await axios.get(`${API_BASE}/stats/test-api-key`)
   return response.data
 }
+
+// OAuth 2.0 API
+export const getOAuthConfig = async () => {
+  const response = await axios.get(`${API_BASE}/oauth/config`)
+  return response.data
+}
+
+export const updateOAuthConfig = async (config: {
+  clientId: string
+  clientSecret: string
+  redirectUri: string
+}) => {
+  const response = await axios.post(`${API_BASE}/oauth/config`, config)
+  return response.data
+}
+
+export const startOAuthFlow = async (scopes?: string[]) => {
+  const response = await axios.post(`${API_BASE}/oauth/authorize`, { scopes })
+  return response.data
+}
+
+export const refreshOAuthToken = async () => {
+  const response = await axios.post(`${API_BASE}/oauth/refresh`)
+  return response.data
+}
+
+export const revokeOAuthToken = async () => {
+  const response = await axios.post(`${API_BASE}/oauth/revoke`)
+  return response.data
+}
+
+export const getOAuthStatus = async () => {
+  const response = await axios.get(`${API_BASE}/oauth/status`)
+  return response.data
+}
