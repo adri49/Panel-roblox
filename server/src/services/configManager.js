@@ -10,6 +10,7 @@ const CONFIG_FILE = path.join(__dirname, '../../config.json');
 const defaultConfig = {
   robloxApiKey: '',
   universeIds: [],
+  groupId: '', // Group ID for revenue/transaction data
   cacheTTL: 300,
   lastUpdated: null
 };
@@ -71,6 +72,15 @@ class ConfigManager {
 
   getCacheTTL() {
     return this.config.cacheTTL || 300;
+  }
+
+  getGroupId() {
+    return this.config.groupId;
+  }
+
+  setGroupId(groupId) {
+    this.config.groupId = groupId;
+    this.saveConfig(this.config);
   }
 
   addUniverseId(universeId) {

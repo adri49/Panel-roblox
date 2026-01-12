@@ -381,6 +381,61 @@ class RobloxAPI {
     }
   }
 
+  async getGroupRevenue(groupId, timeFrame = 'Day') {
+    const cacheKey = `group_revenue_${groupId}_${timeFrame}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return cached;
+
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
+      throw new Error('API key required for group revenue data');
+    }
+
+    const headers = {
+      'x-api-key': apiKey
+    };
+
+    // Try both APIs to see which one works
+    const endpoints = [
+      {
+        name: 'Transaction Records API (New)',
+        url: `https://apis.roblox.com/transaction-records/v1/groups/${groupId}/revenue/summary/${timeFrame.toLowerCase()}`
+      },
+      {
+        name: 'Economy API (Legacy)',
+        url: `${this.economyURL}/v1/groups/${groupId}/revenue/summary/${timeFrame}`
+      }
+    ];
+
+    console.log(`🔍 Attempting to fetch group ${groupId} revenue...`);
+
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`  Trying ${endpoint.name}: ${endpoint.url}`);
+        const response = await axios.get(endpoint.url, { headers });
+
+        const revenueData = {
+          groupId,
+          timeFrame,
+          data: response.data,
+          source: endpoint.name,
+          fetchedAt: new Date().toISOString()
+        };
+
+        cache.set(cacheKey, revenueData, 300); // Cache for 5 minutes
+        console.log(`  ✅ Success with ${endpoint.name}!`);
+        return revenueData;
+      } catch (error) {
+        console.log(`  ❌ Failed with ${endpoint.name}: ${error.response?.status} ${error.response?.statusText}`);
+        if (error.response?.data) {
+          console.log(`  📋 Error details:`, error.response.data);
+        }
+      }
+    }
+
+    throw new Error('Unable to fetch group revenue from any endpoint. This might require cookie authentication (.ROBLOSECURITY) instead of API key.');
+  }
+
   async testApiKeyPermissions() {
     const apiKey = this.getApiKey();
     const universeIds = configManager.getUniverseIds();

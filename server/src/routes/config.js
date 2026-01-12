@@ -10,6 +10,7 @@ router.get('/', (req, res) => {
     const config = configManager.getConfig();
     res.json({
       universeIds: config.universeIds,
+      groupId: config.groupId || '',
       cacheTTL: config.cacheTTL,
       hasApiKey: !!config.robloxApiKey,
       lastUpdated: config.lastUpdated
@@ -139,6 +140,47 @@ router.get('/convert-place/:placeId', async (req, res) => {
       success: true,
       placeId,
       universeId
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get/Set Group ID
+router.get('/group-id', (req, res) => {
+  const groupId = configManager.getGroupId();
+  res.json({ groupId: groupId || '' });
+});
+
+router.post('/group-id', (req, res) => {
+  try {
+    const { groupId } = req.body;
+    configManager.setGroupId(groupId);
+    res.json({
+      success: true,
+      groupId,
+      config: {
+        groupId: configManager.getGroupId(),
+        universeIds: configManager.getUniverseIds(),
+        hasApiKey: !!configManager.getApiKey()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Test group revenue access
+router.get('/test-revenue/:groupId', async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const revenueData = await robloxApi.getGroupRevenue(groupId, 'Day');
+    res.json({
+      success: true,
+      ...revenueData
     });
   } catch (error) {
     res.status(400).json({
