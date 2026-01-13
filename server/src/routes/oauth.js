@@ -114,12 +114,11 @@ router.post('/authorize', (req, res) => {
 
     oauth2Service.configure(config.oauthClientId, config.oauthClientSecret, config.oauthRedirectUri);
 
-    // Scopes par défaut pour accéder aux APIs de revenus
+    // Scopes valides pour Roblox OAuth 2.0
+    // Documentation: https://create.roblox.com/docs/cloud/reference/oauth2
     const defaultScopes = [
-      'openid',
-      'profile',
-      'universe-messaging-service:publish',
-      'user.read'
+      'openid',    // Obligatoire - Identifiant unique de l'utilisateur
+      'profile'    // Accès au profil de base (username, display name, avatar)
     ];
 
     const requestedScopes = scopes || defaultScopes;
