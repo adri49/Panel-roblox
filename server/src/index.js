@@ -28,11 +28,23 @@ app.get('/api/health', (req, res) => {
 // Auth routes (pas protégées - pour s'inscrire/se connecter)
 app.use('/api/auth', authRouter);
 
+// Middleware conditionnel pour OAuth : skip auth pour le callback
+const conditionalOAuthAuth = (req, res, next) => {
+  // Le callback OAuth est public (l'utilisateur revient de Roblox sans JWT)
+  if (req.path === '/callback') {
+    return next();
+  }
+  // Toutes les autres routes OAuth nécessitent l'authentification
+  return authenticateToken(req, res, next);
+};
+
+// OAuth routes (callback public, le reste protégé)
+app.use('/api/oauth', conditionalOAuthAuth, oauthRouter);
+
 // Protected routes (besoin du token JWT)
 app.use('/api/stats', authenticateToken, statsRouter);
 app.use('/api/sales', authenticateToken, salesRouter);
 app.use('/api/config', authenticateToken, configRouter);
-app.use('/api/oauth', authenticateToken, oauthRouter);
 
 // Listen on 0.0.0.0 to accept connections from any network interface
 app.listen(PORT, '0.0.0.0', () => {
