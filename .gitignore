@@ -17,6 +17,9 @@ client/.env
 server/config.json
 server/config.json.backup
 
+# Database (contains sensitive data)
+server/data/panel.db
+
 # Build outputs
 dist/
 build/

@@ -1,12 +1,9 @@
-import Database from 'better-sqlite3';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { getDatabase, initDatabase } from './src/services/database.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// Initialiser la base de données si elle n'existe pas
+initDatabase();
 
-const dbPath = join(__dirname, 'data', 'panel.db');
-const db = new Database(dbPath);
+const db = getDatabase();
 
 console.log('📊 État de la base de données\n');
 
@@ -48,4 +45,4 @@ configs.forEach(config => {
 });
 
 console.log('\n');
-db.close();
+
