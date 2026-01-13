@@ -6,6 +6,7 @@ import Register from './components/Register'
 import Dashboard from './components/Dashboard'
 import SalesPanel from './components/SalesPanel'
 import Settings from './components/Settings'
+import TeamManagement from './components/TeamManagement'
 import Privacy from './components/Privacy'
 import Terms from './components/Terms'
 import { GameStats } from './types'
@@ -18,7 +19,7 @@ function ProtectedApp() {
   const [stats, setStats] = useState<GameStats[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'sales' | 'settings'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'sales' | 'settings' | 'team'>('dashboard')
   const [nextRefresh, setNextRefresh] = useState(60)
   const [showTeamSelector, setShowTeamSelector] = useState(false)
 
@@ -170,6 +171,16 @@ function ProtectedApp() {
                   Configuration
                 </button>
                 <button
+                  onClick={() => setActiveTab('team')}
+                  className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+                    activeTab === 'team'
+                      ? 'bg-white text-purple-600 shadow-lg'
+                      : 'bg-white/20 text-white hover:bg-white/30'
+                  }`}
+                >
+                  Équipe
+                </button>
+                <button
                   onClick={handleRefresh}
                   disabled={refreshing}
                   className={`px-6 py-3 rounded-xl font-semibold transition-all bg-white/20 text-white hover:bg-white/30 flex items-center gap-2 disabled:opacity-50 ${
@@ -205,6 +216,7 @@ function ProtectedApp() {
             {activeTab === 'dashboard' && <Dashboard stats={stats} />}
             {activeTab === 'sales' && <SalesPanel />}
             {activeTab === 'settings' && <Settings />}
+            {activeTab === 'team' && <TeamManagement />}
           </>
         )}
       </div>
