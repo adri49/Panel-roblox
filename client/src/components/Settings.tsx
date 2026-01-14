@@ -321,13 +321,22 @@ const Settings = () => {
   }
 
   const handleSaveSessionCookie = async () => {
+    console.log('🔍 [DEBUG] handleSaveSessionCookie appelé')
+    console.log('🔍 [DEBUG] Longueur du cookie:', sessionCookie.length)
+    console.log('🔍 [DEBUG] Début du cookie:', sessionCookie.substring(0, 50))
+
     if (!sessionCookie.trim()) {
       showMessage('error', 'Veuillez entrer un cookie de session')
       return
     }
 
+    console.log('🔍 [DEBUG] Validation passée, appel de setSessionCookie...')
+
     try {
+      console.log('🔍 [DEBUG] Avant await setSessionCookie')
       const result = await setSessionCookie(sessionCookie)
+      console.log('🔍 [DEBUG] Après await setSessionCookie, résultat:', result)
+
       showMessage('success', 'Cookie de session configuré avec succès')
       setSessionCookie('')
       loadSessionCookieStatus()
@@ -336,7 +345,9 @@ const Settings = () => {
         setTimeout(() => showMessage('error', result.warning), 3000)
       }
     } catch (error: any) {
-      console.error('Error saving session cookie:', error)
+      console.error('❌ [ERROR] Erreur lors de la sauvegarde du cookie:', error)
+      console.error('❌ [ERROR] error.response:', error.response)
+      console.error('❌ [ERROR] error.message:', error.message)
       const errorMessage = error.response?.data?.error || error.message || 'Erreur lors de la sauvegarde'
       showMessage('error', errorMessage)
     }

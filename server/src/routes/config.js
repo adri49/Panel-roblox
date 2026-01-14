@@ -274,10 +274,18 @@ router.get('/session-cookie/status', (req, res) => {
 
 // POST /api/config/session-cookie - Configurer le cookie de session
 router.post('/session-cookie', requireConfigPermission, (req, res) => {
+  console.log('🔍 [SERVER] Route /session-cookie appelée');
+  console.log('🔍 [SERVER] req.teamId:', req.teamId);
+  console.log('🔍 [SERVER] req.user:', req.user);
+  console.log('🔍 [SERVER] req.body:', { ...req.body, sessionCookie: req.body.sessionCookie ? `${req.body.sessionCookie.substring(0, 50)}... (${req.body.sessionCookie.length} chars)` : 'undefined' });
+
   try {
     const { sessionCookie } = req.body;
 
+    console.log('🔍 [SERVER] sessionCookie reçu, longueur:', sessionCookie?.length);
+
     if (!sessionCookie) {
+      console.log('❌ [SERVER] Cookie manquant');
       return res.status(400).json({
         success: false,
         error: 'Cookie de session requis'
@@ -286,14 +294,19 @@ router.post('/session-cookie', requireConfigPermission, (req, res) => {
 
     // Validation basique
     if (typeof sessionCookie !== 'string' || sessionCookie.length < 50) {
+      console.log('❌ [SERVER] Cookie invalide, type:', typeof sessionCookie, 'longueur:', sessionCookie.length);
       return res.status(400).json({
         success: false,
         error: 'Format de cookie invalide'
       });
     }
 
+    console.log('🔍 [SERVER] Validation passée, appel de setSessionCookie...');
+
     // Stocker le cookie (chiffré)
     teamConfigService.setSessionCookie(req.teamId, sessionCookie);
+
+    console.log('✅ [SERVER] Cookie stocké avec succès');
 
     // Log de sécurité
     console.log(`🔐 Cookie de session configuré pour l'équipe ${req.teamId} par l'utilisateur ${req.user.userId}`);
@@ -305,7 +318,7 @@ router.post('/session-cookie', requireConfigPermission, (req, res) => {
       warning: 'IMPORTANT: Assurez-vous que ce cookie provient d\'un compte avec permissions lecture seule !'
     });
   } catch (error) {
-    console.error('Erreur lors de la configuration du cookie:', error);
+    console.error('❌ [SERVER] Erreur lors de la configuration du cookie:', error);
     res.status(500).json({
       success: false,
       error: error.message
