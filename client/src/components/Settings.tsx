@@ -330,12 +330,30 @@ const Settings = () => {
       return
     }
 
-    console.log('🔍 [DEBUG] Validation passée, appel de setSessionCookie...')
+    console.log('🔍 [DEBUG] Validation passée, appel direct axios...')
 
     try {
-      console.log('🔍 [DEBUG] Avant await setSessionCookie')
-      const result = await setSessionCookie(sessionCookie)
-      console.log('🔍 [DEBUG] Après await setSessionCookie, résultat:', result)
+      console.log('🔍 [DEBUG] Avant axios.post')
+
+      // BYPASS CACHE: Appel axios direct au lieu de passer par api/index.ts
+      const response = await fetch('/api/config/session-cookie', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'X-Team-Id': localStorage.getItem('currentTeamId') || ''
+        },
+        body: JSON.stringify({ sessionCookie })
+      })
+
+      console.log('🔍 [DEBUG] Réponse reçue, status:', response.status)
+
+      const result = await response.json()
+      console.log('🔍 [DEBUG] Données JSON:', result)
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Erreur lors de la sauvegarde')
+      }
 
       showMessage('success', 'Cookie de session configuré avec succès')
       setSessionCookie('')
