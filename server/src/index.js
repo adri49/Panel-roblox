@@ -8,6 +8,7 @@ import salesRouter from './routes/sales.js';
 import configRouter from './routes/config.js';
 import oauthRouter from './routes/oauth.js';
 import { authenticateToken } from './middleware/auth.js';
+import cookieMonitoring from './services/cookieMonitoring.js';
 
 dotenv.config();
 
@@ -52,4 +53,13 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`Local access: http://localhost:${PORT}`);
   console.log(`Network access: http://192.168.1.18:${PORT}`);
   console.log('🔒 Authentication enabled - All API routes are now protected');
+
+  // Démarrer le monitoring des cookies de session
+  // Vérifie automatiquement si les cookies sont valides toutes les heures
+  // et notifie quand ils expirent
+  if (process.env.ENABLE_COOKIE_MONITORING !== 'false') {
+    setTimeout(() => {
+      cookieMonitoring.start();
+    }, 5000); // Attendre 5 secondes après le démarrage
+  }
 });
