@@ -236,18 +236,18 @@ router.post('/revoke', async (req, res) => {
  */
 router.get('/status', (req, res) => {
   try {
-    const isConfigured = oauth2Service.isConfigured();
-    const hasValidToken = oauth2Service.hasValidToken();
-    const tokens = configManager.getOAuthTokens();
+    const config = teamConfigService.getTeamConfig(req.teamId);
+    const isConfigured = !!config.oauthClientId;
+    const hasValidToken = !!config.oauthAccessToken;
 
     res.json({
       success: true,
       status: {
         isConfigured,
         hasValidToken,
-        expiresAt: tokens?.expiresAt || null,
-        scope: tokens?.scope || null,
-        isExpired: tokens?.expiresAt ? Date.now() >= tokens.expiresAt : true
+        expiresAt: config.oauthExpiresAt || null,
+        scope: config.oauthScope || null,
+        isExpired: config.oauthExpiresAt ? Date.now() >= config.oauthExpiresAt : true
       }
     });
   } catch (error) {
