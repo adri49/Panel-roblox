@@ -332,12 +332,13 @@ const Settings = () => {
       setSessionCookie('')
       loadSessionCookieStatus()
 
-      if (result.warning) {
+      if (result && result.warning) {
         setTimeout(() => showMessage('error', result.warning), 3000)
       }
     } catch (error: any) {
       console.error('Error saving session cookie:', error)
-      showMessage('error', error.response?.data?.error || 'Erreur lors de la sauvegarde')
+      const errorMessage = error.response?.data?.error || error.message || 'Erreur lors de la sauvegarde'
+      showMessage('error', errorMessage)
     }
   }
 
