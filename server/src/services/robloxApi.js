@@ -518,13 +518,32 @@ class RobloxAPI {
     throw new Error('economycreatorstats API failed with all authentication methods (OAuth + API Keys)');
   }
 
-  async getEngagementPayouts(universeId) {
-    const cacheKey = `engagement_payouts_${universeId}`;
+  async getEngagementPayouts(universeId, startDate = null, endDate = null) {
+    // Par défaut: derniers 30 jours
+    if (!startDate) {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      startDate = thirtyDaysAgo.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+    }
+
+    if (!endDate) {
+      endDate = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+    }
+
+    const cacheKey = `engagement_payouts_${universeId}_${startDate}_${endDate}`;
     const cached = cache.get(cacheKey);
     if (cached) return cached;
 
     console.log(`🔍 Fetching engagementpayouts API for universe ${universeId}...`);
-    const url = `${this.engagementPayoutsURL}/v1/universes/${universeId}/engagement-payout`;
+    console.log(`   📅 Period: ${startDate} → ${endDate}`);
+
+    // Endpoint correct avec paramètres
+    const url = `${this.engagementPayoutsURL}/v1/universe-payout-history`;
+    const params = {
+      universeId: universeId,
+      startDate: startDate,
+      endDate: endDate
+    };
 
     // Méthode 1: Essayer OAuth 2.0 en priorité
     try {
@@ -532,10 +551,12 @@ class RobloxAPI {
         const headers = await this.getAuthHeaders();
         console.log('  🔐 Trying with OAuth 2.0...');
 
-        const response = await axios.get(url, { headers });
+        const response = await axios.get(url, { headers, params });
 
         const payoutData = {
           universeId,
+          startDate,
+          endDate,
           data: response.data,
           source: 'engagementpayouts API',
           authMethod: 'OAuth 2.0',
@@ -567,11 +588,14 @@ class RobloxAPI {
       try {
         console.log(`  🔑 Trying with ${type} API Key (${key.substring(0, 10)}...)`);
         const response = await axios.get(url, {
-          headers: { 'x-api-key': key }
+          headers: { 'x-api-key': key },
+          params
         });
 
         const payoutData = {
           universeId,
+          startDate,
+          endDate,
           data: response.data,
           source: 'engagementpayouts API',
           authMethod: `API Key (${type})`,

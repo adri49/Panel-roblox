@@ -117,16 +117,27 @@ router.post('/authorize', (req, res) => {
     // Scopes disponibles avec permissions "read" pour OAuth 2.0
     // Utilise UNIQUEMENT les scopes activés dans votre application Roblox
     const defaultScopes = [
-      'openid',                                    // Obligatoire - SSO
+      // Identité (obligatoire)
+      'openid',                                    // SSO
       'profile',                                   // Profil de base
+
+      // Scopes "read" standards
       'asset:read',                                // Lire les assets
       'group:read',                                // Lire les groupes
       'user.inventory-item:read',                  // Lire l'inventaire
       'commerce-item:read',                        // Lire articles commerciaux
       'creator-store-product:read',                // Produits Creator Store
       'universe.subscription-product.subscription:read', // Abonnements
+      'universe.user-restriction:read',            // Restrictions utilisateur
       'user.advanced:read',                        // Prime et statut vérifié
       'user.social:read',                          // Comptes sociaux
+      'user.commerce-merchant-connection:read',    // Connexions marchandes
+      'avatar-auto-setup-job:read',                // Jobs d'auto-setup avatar
+
+      // Scopes "legacy" pour accès aux statistiques et économie
+      // Ces scopes donnent accès aux APIs economycreatorstats et engagementpayouts
+      'legacy-universe.manage',                    // Gestion expériences + stats économiques
+      'legacy-universe.following:read',            // Suivis d'expériences
     ];
 
     const requestedScopes = scopes || defaultScopes;

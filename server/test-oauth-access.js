@@ -31,6 +31,10 @@ async function testOAuthAccess() {
 
   console.log(`🎮 Universe ID de test: ${universeId}\n`);
 
+  // Dates pour les tests (derniers 30 jours)
+  const endDate = new Date().toISOString().split('T')[0];
+  const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
   // Liste des endpoints à tester
   const tests = [
     {
@@ -48,22 +52,29 @@ async function testOAuthAccess() {
       }
     },
     {
-      name: 'Universe Statistics (Player Count)',
-      url: `https://apis.roblox.com/cloud/v2/universes/${universeId}/stats`,
+      name: 'Economy Creator Stats (Revenue)',
+      url: `https://economycreatorstats.roblox.com/v1/universes/${universeId}/stats`,
       headers: {
         'Authorization': `Bearer ${config.oauthAccessToken}`
       }
     },
     {
-      name: 'Economy Stats (Revenue)',
-      url: `https://economy.roblox.com/v2/users/${universeId}/transactions`,
+      name: 'Engagement Payouts History',
+      url: `https://engagementpayouts.roblox.com/v1/universe-payout-history?universeId=${universeId}&startDate=${startDate}&endDate=${endDate}`,
       headers: {
         'Authorization': `Bearer ${config.oauthAccessToken}`
       }
     },
     {
-      name: 'Developer Stats',
-      url: `https://develop.roblox.com/v2/universes/${universeId}/places`,
+      name: 'Universe Statistics (Games API)',
+      url: `https://games.roblox.com/v1/games?universeIds=${universeId}`,
+      headers: {
+        'Authorization': `Bearer ${config.oauthAccessToken}`
+      }
+    },
+    {
+      name: 'Developer Products',
+      url: `https://apis.roblox.com/cloud/v2/universes/${universeId}/developer-products`,
       headers: {
         'Authorization': `Bearer ${config.oauthAccessToken}`
       }
