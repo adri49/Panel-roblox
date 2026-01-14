@@ -8,10 +8,10 @@ D'après vos screenshots et la documentation Roblox, voici la **situation confir
 - OAuth 2.0 **peut** accéder aux Open Cloud APIs ✅
 - Votre documentation Roblox le confirme ✅
 - Vous avez été validé par Roblox pour OAuth ✅
-- **Les scopes "legacy-universe.manage"** donnent accès aux statistiques économiques ✅
+- **Les scopes "legacy-universe:manage"** donnent accès aux statistiques économiques ✅
 
 ### 🔑 Scopes Critiques
-- **`legacy-universe.manage`** → Donne accès à :
+- **`legacy-universe:manage`** → Donne accès à :
   - `economycreatorstats.roblox.com` (statistiques de revenus)
   - `engagementpayouts.roblox.com` (historique des payouts)
   - Gestion des expériences et informations associées
@@ -45,14 +45,14 @@ const availableScopes = [
   'avatar-auto-setup-job:read',                // ✅ Jobs d'auto-setup avatar
 
   // 🎯 Scopes "legacy" CRITIQUES pour économie et statistiques
-  'legacy-universe.manage',                    // ✅ Gestion expériences + STATS ÉCONOMIQUES
+  'legacy-universe:manage',                    // ✅ Gestion expériences + STATS ÉCONOMIQUES (NOTER LE : et non .)
   'legacy-universe.following:read',            // ✅ Suivis d'expériences
 ];
 ```
 
 ### ✅ Accès aux APIs Économiques
 
-Les scopes **"legacy-universe.manage"** et autres scopes legacy donnent accès à :
+Les scopes **"legacy-universe:manage"** et autres scopes legacy donnent accès à :
 - ✅ `economycreatorstats.roblox.com/v1/universes/{id}/stats` - Statistiques de revenus
 - ✅ `engagementpayouts.roblox.com/v1/universe-payout-history` - Historique des payouts d'engagement
 
@@ -184,10 +184,10 @@ try {
 | Endpoint | OAuth Scope Requis | Status |
 |----------|-------------------|--------|
 | `/oauth/v1/userinfo` | `openid`, `profile` | ✅ CONFIRMÉ |
-| `/cloud/v2/universes/{id}` | `legacy-universe.manage` | ✅ DEVRAIT FONCTIONNER |
-| `economycreatorstats.roblox.com/v1/universes/{id}/stats` | `legacy-universe.manage` | ✅ DEVRAIT FONCTIONNER |
-| `engagementpayouts.roblox.com/v1/universe-payout-history` | `legacy-universe.manage` | ✅ DEVRAIT FONCTIONNER |
-| `/cloud/v2/universes/{id}/developer-products` | `legacy-universe.manage` | ✅ DEVRAIT FONCTIONNER |
+| `/cloud/v2/universes/{id}` | `legacy-universe:manage` | ✅ DEVRAIT FONCTIONNER |
+| `economycreatorstats.roblox.com/v1/universes/{id}/stats` | `legacy-universe:manage` | ✅ DEVRAIT FONCTIONNER |
+| `engagementpayouts.roblox.com/v1/universe-payout-history` | `legacy-universe:manage` | ✅ DEVRAIT FONCTIONNER |
+| `/cloud/v2/universes/{id}/developer-products` | `legacy-universe:manage` | ✅ DEVRAIT FONCTIONNER |
 | `games.roblox.com/v1/games` | Public (pas de scope requis) | ✅ CONFIRMÉ |
 
 ## 🚀 Prochaines Étapes

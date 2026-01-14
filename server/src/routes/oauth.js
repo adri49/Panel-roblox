@@ -136,7 +136,7 @@ router.post('/authorize', (req, res) => {
 
       // Scopes "legacy" pour accès aux statistiques et économie
       // Ces scopes donnent accès aux APIs economycreatorstats et engagementpayouts
-      'legacy-universe.manage',                    // Gestion expériences + stats économiques
+      'legacy-universe:manage',                    // Gestion expériences + stats économiques (NOTER LE : et non .)
       'legacy-universe.following:read',            // Suivis d'expériences
     ];
 
