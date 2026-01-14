@@ -402,6 +402,44 @@ Surveillez ces logs pour détecter toute activité anormale.
 
 ---
 
+## ❓ FAQ - Questions Fréquentes
+
+### Peut-on récupérer le cookie automatiquement depuis Roblox ?
+
+**NON**, et voici pourquoi :
+
+**Raisons techniques** :
+- 🔒 Roblox nécessite une connexion via navigateur (interaction humaine)
+- 🤖 CAPTCHA bloque les connexions automatisées
+- 🔐 2FA (authentification à deux facteurs) nécessite une validation humaine
+- 🛡️ Tokens anti-bot détectent et bloquent les scripts automatisés
+- 🔄 Les cookies sont révoqués si détectés comme automatisés
+
+**Ce qui est automatisé** :
+- ✅ Détection d'expiration (toutes les heures)
+- ✅ Notifications instantanées (Discord/Slack/Email)
+- ✅ Stockage sécurisé (chiffrement AES-256)
+
+**Fréquence de mise à jour manuelle** :
+- 📅 Environ **2 fois par an** (tous les 6+ mois)
+- ⏱️ **2-4 minutes** par mise à jour
+- 🔔 **Notification automatique** quand c'est nécessaire
+
+**C'est la solution standard** utilisée par tous les bots et outils Roblox (RoVer, Bloxlink, RoMonitor, etc.).
+
+### Pourquoi les cookies durent 6 mois et pas 2 semaines ?
+
+Les cookies `.ROBLOSECURITY` de Roblox ont une **durée de vie de 6+ mois** par défaut.
+
+La rotation "toutes les 2 semaines" était une **recommandation de sécurité supplémentaire** (pas une obligation), mais avec :
+- Un compte dédié avec permissions minimales
+- Le monitoring automatique qui détecte toute anomalie
+- Le chiffrement AES-256 en base de données
+
+Il n'est **pas nécessaire** de rotationner si souvent. Attendez simplement que le système vous notifie quand le cookie expire naturellement (~6 mois).
+
+---
+
 ## 📞 Support
 
 Si vous rencontrez des problèmes :
