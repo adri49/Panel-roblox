@@ -228,3 +228,75 @@ server/data/panel.db
 - Gérer votre équipe
 - Partager l'accès avec des membres
 - Chaque équipe a sa propre configuration isolée
+
+---
+
+## 🔐 6. Tester OAuth 2.0 pour les Statistiques
+
+### Pourquoi ce test ?
+
+Vous avez activé OAuth 2.0 et vous pensez qu'il peut remplacer les API Keys pour accéder aux statistiques et revenus.
+**Nous devons vérifier** si les scopes OAuth actuels donnent bien accès à ces APIs.
+
+### Exécuter le test automatique
+
+```bash
+cd /home/user/Panel-roblox/server
+node test-oauth-access.js
+```
+
+### Que fait ce script ?
+
+Il teste votre token OAuth sur plusieurs endpoints Roblox :
+1. ✅ User Info (OpenID) - devrait fonctionner
+2. ❓ Universe Details - à vérifier
+3. ❓ Universe Statistics - probablement 403
+4. ❓ Economy Stats (Revenue) - probablement 403
+5. ❓ Developer Stats - à vérifier
+
+### Interpréter les résultats
+
+**✅ Si vous voyez "Success with OAuth 2.0" partout** :
+- OAuth peut remplacer les API Keys !
+- Vous pouvez retirer les API Keys de votre config
+- Plus besoin de gérer 2 systèmes d'authentification
+
+**❌ Si vous voyez "403 Forbidden" ou "insufficient_scope"** :
+- Les scopes OAuth pour les stats n'existent pas encore
+- Vous devez **garder** les API Keys pour les statistiques
+- OAuth sert uniquement pour l'identité utilisateur
+
+### Configuration Hybride (si OAuth échoue)
+
+Si OAuth ne fonctionne pas pour les stats, votre système utilisera :
+- **OAuth** → Identité utilisateur (connexion SSO)
+- **API Keys** → Statistiques, revenus, analytics
+
+Le code est déjà configuré pour essayer OAuth en priorité, puis fallback sur API Keys automatiquement.
+
+### Vérifier dans les logs serveur
+
+Quand vous accédez aux statistiques, regardez les logs :
+
+```bash
+# Logs avec OAuth qui fonctionne
+🔍 Fetching economycreatorstats API for universe 8832949120...
+  🔐 Trying with OAuth 2.0...
+  ✅ Success with OAuth 2.0!
+
+# Logs avec OAuth qui échoue (fallback API Key)
+🔍 Fetching economycreatorstats API for universe 8832949120...
+  🔐 Trying with OAuth 2.0...
+  ❌ OAuth 2.0 failed: 403 Forbidden
+  🔑 Trying with API Key...
+  ✅ Success with API Key!
+```
+
+### Documentation Complète
+
+Pour plus de détails sur les scopes OAuth et leurs limitations :
+```bash
+cat /home/user/Panel-roblox/OAUTH_SCOPES_GUIDE.md
+```
+
+Ou consultez : [OAUTH_SCOPES_GUIDE.md](OAUTH_SCOPES_GUIDE.md)
