@@ -89,6 +89,132 @@ Ces APIs legacy nécessitent un cookie `.ROBLOSECURITY` dans l'en-tête `Cookie`
 
 ---
 
+## 🤖 Monitoring Automatique du Cookie
+
+### Détection Automatique d'Expiration
+
+Le système inclut un **monitoring automatique** qui :
+
+1. ✅ **Vérifie** la validité du cookie **toutes les heures**
+2. ✅ **Détecte automatiquement** quand le cookie expire (401 errors)
+3. ✅ **Vous notifie** immédiatement par Discord/Slack/Email
+4. ✅ **Évite le spam** : 1 notification maximum par 24h par équipe
+
+### Comment ça Fonctionne
+
+```
+[Serveur Node.js]
+    │
+    ├─ Toutes les heures ⏰
+    │   │
+    │   ├─ Récupère tous les cookies configurés
+    │   ├─ Teste chaque cookie (GET /users/authenticated)
+    │   │
+    │   ├─ ✅ Cookie valide ?
+    │   │   └─ Log : "Cookie is valid (User ID: 442615396)"
+    │   │
+    │   └─ ❌ Cookie expiré (401) ?
+    │       ├─ Log : "Cookie is INVALID or EXPIRED"
+    │       └─ Envoie notification Discord/Slack/Email
+    │           │
+    │           └─ 🔔 Message:
+    │               "Le cookie pour l'équipe Adri49 est expiré"
+    │               "Action requise: Mettre à jour le cookie"
+```
+
+### Configurer les Notifications
+
+#### Option 1 : Discord (Recommandé) 💬
+
+1. **Créer un Webhook Discord** :
+   - Ouvrez Discord → Paramètres du Serveur
+   - Onglet "Intégrations" → "Webhooks"
+   - Cliquez sur "Nouveau Webhook"
+   - Donnez-lui un nom (ex: "Roblox Stats Monitor")
+   - Choisissez le canal (#notifications ou #admin)
+   - Copiez l'URL du webhook
+
+2. **Configurer dans `.env`** :
+   ```env
+   DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/123456789/abcdefghijklmnop
+   ```
+
+3. **Redémarrer le serveur** :
+   ```bash
+   npm run dev
+   ```
+
+**Exemple de notification Discord** :
+```
+🔔 Cookie Roblox Expiré
+
+⚠️  Le cookie de session pour l'équipe Adri49 (ID: 1) est expiré ou invalide.
+
+📊 Les statistiques économiques (economycreatorstats, engagementpayouts)
+ne peuvent plus être récupérées.
+
+✅ Action Requise :
+1. Connectez-vous au compte Roblox dédié
+2. Récupérez le nouveau cookie .ROBLOSECURITY
+3. Mettez-le à jour dans le panel : Configuration → Cookie de Session
+
+⏱️  Temps estimé : 2 minutes
+```
+
+#### Option 2 : Slack 📢
+
+1. **Créer un Webhook Slack** :
+   - Allez sur https://api.slack.com/messaging/webhooks
+   - Cliquez sur "Create your Slack app"
+   - Suivez les instructions
+   - Copiez l'URL du webhook
+
+2. **Configurer dans `.env`** :
+   ```env
+   SLACK_WEBHOOK_URL=https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX
+   ```
+
+#### Option 3 : Email 📧
+
+```env
+ADMIN_EMAIL=admin@example.com
+```
+
+*Note: L'envoi d'email nécessite de configurer un service SMTP (Sendgrid, Mailgun, etc.) - À implémenter selon vos besoins.*
+
+### Désactiver le Monitoring (Non Recommandé)
+
+Si vous ne voulez pas de monitoring automatique :
+
+```env
+ENABLE_COOKIE_MONITORING=false
+```
+
+### Vérification Manuelle
+
+Vous pouvez aussi vérifier manuellement si un cookie est valide :
+
+**API** : `GET /api/config/session-cookie/check`
+
+```bash
+curl https://votre-panel.com/api/config/session-cookie/check \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "X-Team-Id: 1"
+```
+
+**Réponse** :
+```json
+{
+  "success": true,
+  "teamId": 1,
+  "teamName": "Adri49",
+  "isValid": true,
+  "checkedAt": "2026-01-14T17:30:00.000Z"
+}
+```
+
+---
+
 ## 🔧 Configuration
 
 ### Générer une Clé de Chiffrement

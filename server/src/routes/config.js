@@ -1,6 +1,7 @@
 import express from 'express';
 import teamConfigService from '../services/teamConfigService.js';
 import robloxApi from '../services/robloxApi.js';
+import cookieMonitoring from '../services/cookieMonitoring.js';
 import { extractTeamId, requireConfigPermission } from '../middleware/team.js';
 
 const router = express.Router();
@@ -322,6 +323,23 @@ router.delete('/session-cookie', requireConfigPermission, (req, res) => {
     res.json({
       success: true,
       message: 'Cookie de session supprimé avec succès'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// GET /api/config/session-cookie/check - Vérifier manuellement la validité du cookie
+router.get('/session-cookie/check', async (req, res) => {
+  try {
+    const result = await cookieMonitoring.manualCheck(req.teamId);
+
+    res.json({
+      success: true,
+      ...result
     });
   } catch (error) {
     res.status(500).json({
