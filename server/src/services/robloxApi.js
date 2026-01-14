@@ -451,7 +451,40 @@ class RobloxAPI {
     console.log(`🔍 Fetching economycreatorstats API for universe ${universeId}...`);
     const url = `${this.economyCreatorStatsURL}/v1/universes/${universeId}/stats`;
 
-    // Méthode 1: Essayer OAuth 2.0 en priorité
+    // Méthode 1: Essayer Cookie de Session (PRIORITÉ pour cette API legacy)
+    if (this.currentTeamId) {
+      const sessionCookie = teamConfigService.getSessionCookie(this.currentTeamId);
+      if (sessionCookie) {
+        try {
+          console.log('  🍪 Trying with Session Cookie...');
+          const response = await axios.get(url, {
+            headers: {
+              'Cookie': `.ROBLOSECURITY=${sessionCookie}`
+            }
+          });
+
+          const statsData = {
+            universeId,
+            data: response.data,
+            source: 'economycreatorstats API',
+            authMethod: 'Session Cookie',
+            fetchedAt: new Date().toISOString()
+          };
+
+          cache.set(cacheKey, statsData, 300);
+          console.log('  ✅ Success with Session Cookie!');
+          console.log(`  📊 Data:`, JSON.stringify(response.data, null, 2));
+          return statsData;
+        } catch (error) {
+          console.log(`  ❌ Session Cookie failed: ${error.response?.status} ${error.response?.statusText}`);
+          if (error.response?.data) {
+            console.log(`  📋 Details:`, JSON.stringify(error.response.data, null, 2));
+          }
+        }
+      }
+    }
+
+    // Méthode 2: Essayer OAuth 2.0 (peu probable de fonctionner)
     try {
       if (oauth2Service.hasValidToken()) {
         const headers = await this.getAuthHeaders();
@@ -479,7 +512,7 @@ class RobloxAPI {
       }
     }
 
-    // Méthode 2: Fallback sur API Keys (User puis Group)
+    // Méthode 3: Fallback sur API Keys (peu probable de fonctionner)
     const groupApiKey = this.getApiKey();
     const userApiKey = configManager.getUserApiKey();
 
@@ -515,7 +548,7 @@ class RobloxAPI {
       }
     }
 
-    throw new Error('economycreatorstats API failed with all authentication methods (OAuth + API Keys)');
+    throw new Error('economycreatorstats API failed with all authentication methods (Cookie, OAuth, API Keys)');
   }
 
   async getEngagementPayouts(universeId, startDate = null, endDate = null) {
@@ -545,7 +578,43 @@ class RobloxAPI {
       endDate: endDate
     };
 
-    // Méthode 1: Essayer OAuth 2.0 en priorité
+    // Méthode 1: Essayer Cookie de Session (PRIORITÉ pour cette API legacy)
+    if (this.currentTeamId) {
+      const sessionCookie = teamConfigService.getSessionCookie(this.currentTeamId);
+      if (sessionCookie) {
+        try {
+          console.log('  🍪 Trying with Session Cookie...');
+          const response = await axios.get(url, {
+            headers: {
+              'Cookie': `.ROBLOSECURITY=${sessionCookie}`
+            },
+            params
+          });
+
+          const payoutData = {
+            universeId,
+            startDate,
+            endDate,
+            data: response.data,
+            source: 'engagementpayouts API',
+            authMethod: 'Session Cookie',
+            fetchedAt: new Date().toISOString()
+          };
+
+          cache.set(cacheKey, payoutData, 300);
+          console.log('  ✅ Success with Session Cookie!');
+          console.log(`  📊 Data:`, JSON.stringify(response.data, null, 2));
+          return payoutData;
+        } catch (error) {
+          console.log(`  ❌ Session Cookie failed: ${error.response?.status} ${error.response?.statusText}`);
+          if (error.response?.data) {
+            console.log(`  📋 Details:`, JSON.stringify(error.response.data, null, 2));
+          }
+        }
+      }
+    }
+
+    // Méthode 2: Essayer OAuth 2.0 (peu probable de fonctionner)
     try {
       if (oauth2Service.hasValidToken()) {
         const headers = await this.getAuthHeaders();
@@ -575,7 +644,7 @@ class RobloxAPI {
       }
     }
 
-    // Méthode 2: Fallback sur API Keys (User puis Group)
+    // Méthode 3: Fallback sur API Keys (peu probable de fonctionner)
     const groupApiKey = this.getApiKey();
     const userApiKey = configManager.getUserApiKey();
 
@@ -614,7 +683,7 @@ class RobloxAPI {
       }
     }
 
-    throw new Error('engagementpayouts API failed with all authentication methods (OAuth + API Keys)');
+    throw new Error('engagementpayouts API failed with all authentication methods (Cookie, OAuth, API Keys)');
   }
 
   async getGroupRevenue(groupId, timeFrame = 'Day') {

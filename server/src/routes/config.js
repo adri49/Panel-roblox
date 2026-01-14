@@ -244,4 +244,91 @@ router.get('/test-engagement-payouts/:universeId', async (req, res) => {
   }
 });
 
+/**
+ * 🔐 ROUTES DE GESTION DU COOKIE DE SESSION ROBLOX
+ * Ces routes gèrent le cookie .ROBLOSECURITY de manière sécurisée
+ *
+ * ⚠️  ATTENTION: Utilisez UNIQUEMENT avec un compte Roblox ayant des permissions MINIMALES !
+ */
+
+// GET /api/config/session-cookie/status - Vérifier si un cookie est configuré
+router.get('/session-cookie/status', (req, res) => {
+  try {
+    const hasSessionCookie = teamConfigService.hasSessionCookie(req.teamId);
+
+    res.json({
+      success: true,
+      hasSessionCookie,
+      message: hasSessionCookie
+        ? 'Cookie de session configuré'
+        : 'Aucun cookie de session configuré'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// POST /api/config/session-cookie - Configurer le cookie de session
+router.post('/session-cookie', requireConfigPermission, (req, res) => {
+  try {
+    const { sessionCookie } = req.body;
+
+    if (!sessionCookie) {
+      return res.status(400).json({
+        success: false,
+        error: 'Cookie de session requis'
+      });
+    }
+
+    // Validation basique
+    if (typeof sessionCookie !== 'string' || sessionCookie.length < 50) {
+      return res.status(400).json({
+        success: false,
+        error: 'Format de cookie invalide'
+      });
+    }
+
+    // Stocker le cookie (chiffré)
+    teamConfigService.setSessionCookie(req.teamId, sessionCookie);
+
+    // Log de sécurité
+    console.log(`🔐 Cookie de session configuré pour l'équipe ${req.teamId} par l'utilisateur ${req.user.userId}`);
+    console.log(`⚠️  RAPPEL: Ce cookie doit provenir d'un compte avec PERMISSIONS MINIMALES !`);
+
+    res.json({
+      success: true,
+      message: 'Cookie de session configuré avec succès',
+      warning: 'IMPORTANT: Assurez-vous que ce cookie provient d\'un compte avec permissions lecture seule !'
+    });
+  } catch (error) {
+    console.error('Erreur lors de la configuration du cookie:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// DELETE /api/config/session-cookie - Supprimer le cookie de session
+router.delete('/session-cookie', requireConfigPermission, (req, res) => {
+  try {
+    teamConfigService.clearSessionCookie(req.teamId);
+
+    console.log(`🗑️  Cookie de session supprimé pour l'équipe ${req.teamId} par l'utilisateur ${req.user.userId}`);
+
+    res.json({
+      success: true,
+      message: 'Cookie de session supprimé avec succès'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 export default router;

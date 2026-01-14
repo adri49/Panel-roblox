@@ -94,6 +94,17 @@ export function initDatabase() {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_team_members_team ON team_members(team_id)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_team_members_user ON team_members(user_id)`);
 
+  // Migration: Ajouter colonne pour cookie de session Roblox (chiffré)
+  try {
+    db.exec(`ALTER TABLE team_configs ADD COLUMN roblox_session_cookie TEXT`);
+    console.log('✅ Migration: Colonne roblox_session_cookie ajoutée');
+  } catch (error) {
+    // Colonne existe déjà, ignorer
+    if (!error.message.includes('duplicate column name')) {
+      console.error('⚠️  Erreur migration:', error.message);
+    }
+  }
+
   console.log('✅ Database initialized successfully');
   console.log(`📁 Database location: ${DB_PATH}`);
 }

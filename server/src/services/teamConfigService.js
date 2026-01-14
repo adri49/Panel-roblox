@@ -1,4 +1,5 @@
 import { getDatabase } from './database.js';
+import cookieEncryption from './cookieEncryption.js';
 
 /**
  * Service de gestion des configurations par équipe
@@ -192,6 +193,113 @@ class TeamConfigService {
   getOAuthRefreshToken(teamId) {
     const config = this.getTeamConfig(teamId);
     return config.oauth_refresh_token;
+  }
+
+  /**
+   * 🔐 COOKIE DE SESSION ROBLOX (CHIFFRÉ)
+   * Ces méthodes gèrent le cookie .ROBLOSECURITY de manière sécurisée
+   */
+
+  /**
+   * Stocke un cookie de session Roblox (chiffré dans la DB)
+   * ⚠️  ATTENTION: Utiliser UNIQUEMENT avec un compte à permissions minimales !
+   *
+   * @param {number} teamId - ID de l'équipe
+   * @param {string} rawCookie - Cookie .ROBLOSECURITY en clair
+   */
+  setSessionCookie(teamId, rawCookie) {
+    if (!rawCookie || typeof rawCookie !== 'string') {
+      throw new Error('Cookie invalide');
+    }
+
+    // Validation basique du format cookie Roblox
+    if (!rawCookie.startsWith('_|WARNING:-DO-NOT-SHARE-THIS.')) {
+      console.warn('⚠️  ATTENTION: Le cookie ne ressemble pas à un cookie Roblox valide');
+    }
+
+    const db = getDatabase();
+
+    try {
+      // Chiffrer le cookie avant de le stocker
+      const encryptedCookie = cookieEncryption.encrypt(rawCookie);
+
+      db.prepare(`
+        UPDATE team_configs
+        SET
+          roblox_session_cookie = ?,
+          last_updated = CURRENT_TIMESTAMP
+        WHERE team_id = ?
+      `).run(encryptedCookie, teamId);
+
+      console.log(`🔐 Cookie de session stocké (chiffré) pour l'équipe ${teamId}`);
+      console.log(`⚠️  RAPPEL: Ce cookie doit provenir d'un compte avec permissions LECTURE SEULE !`);
+    } catch (error) {
+      console.error('❌ Erreur lors du stockage du cookie:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Récupère le cookie de session Roblox (déchiffré)
+   * ⚠️  NE JAMAIS exposer ce cookie au client !
+   *
+   * @param {number} teamId - ID de l'équipe
+   * @returns {string|null} Cookie en clair, ou null si absent
+   */
+  getSessionCookie(teamId) {
+    const db = getDatabase();
+
+    try {
+      const result = db.prepare(`
+        SELECT roblox_session_cookie FROM team_configs WHERE team_id = ?
+      `).get(teamId);
+
+      if (!result || !result.roblox_session_cookie) {
+        return null;
+      }
+
+      // Déchiffrer le cookie
+      const decryptedCookie = cookieEncryption.decrypt(result.roblox_session_cookie);
+      return decryptedCookie;
+    } catch (error) {
+      console.error('❌ Erreur lors de la récupération du cookie:', error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Vérifie si une équipe a un cookie de session configuré
+   *
+   * @param {number} teamId - ID de l'équipe
+   * @returns {boolean}
+   */
+  hasSessionCookie(teamId) {
+    const db = getDatabase();
+
+    const result = db.prepare(`
+      SELECT roblox_session_cookie FROM team_configs WHERE team_id = ?
+    `).get(teamId);
+
+    return !!(result && result.roblox_session_cookie);
+  }
+
+  /**
+   * Supprime le cookie de session d'une équipe
+   *
+   * @param {number} teamId - ID de l'équipe
+   */
+  clearSessionCookie(teamId) {
+    const db = getDatabase();
+
+    db.prepare(`
+      UPDATE team_configs
+      SET
+        roblox_session_cookie = NULL,
+        last_updated = CURRENT_TIMESTAMP
+      WHERE team_id = ?
+    `).run(teamId);
+
+    console.log(`🗑️  Cookie de session supprimé pour l'équipe ${teamId}`);
   }
 }
 
