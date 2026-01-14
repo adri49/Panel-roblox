@@ -12,13 +12,6 @@ class CookieMonitoringService {
     this.isRunning = false;
     this.monitoringTimer = null;
 
-    // Configuration des notifications
-    this.notificationConfig = {
-      email: process.env.ADMIN_EMAIL || null,
-      discordWebhook: process.env.DISCORD_WEBHOOK_URL || null,
-      slackWebhook: process.env.SLACK_WEBHOOK_URL || null
-    };
-
     // Tracking des erreurs pour éviter le spam
     this.lastNotificationTime = {};
     this.minNotificationInterval = 24 * 60 * 60 * 1000; // 1 notification max par 24h
@@ -149,6 +142,14 @@ class CookieMonitoringService {
 
     this.lastNotificationTime[teamId] = now;
 
+    // Récupérer les webhooks configurés pour cette équipe
+    const webhooks = teamConfigService.getWebhooks(teamId);
+
+    if (!webhooks.discordWebhookUrl && !webhooks.slackWebhookUrl && !webhooks.notificationEmail) {
+      console.log(`⚠️  Team ${teamName}: Aucun webhook configuré, notification ignorée`);
+      return;
+    }
+
     const message = `
 🔔 **Cookie Roblox Expiré**
 
@@ -166,24 +167,24 @@ class CookieMonitoringService {
 
     console.log('\n' + message + '\n');
 
-    // Envoyer aux différents canaux configurés
+    // Envoyer aux différents canaux configurés pour cette équipe
     await Promise.all([
-      this.sendDiscordNotification(message),
-      this.sendSlackNotification(message),
-      this.sendEmailNotification(teamName, message)
+      this.sendDiscordNotification(webhooks.discordWebhookUrl, message),
+      this.sendSlackNotification(webhooks.slackWebhookUrl, message),
+      this.sendEmailNotification(webhooks.notificationEmail, teamName, message)
     ]);
   }
 
   /**
    * Envoie une notification Discord
    */
-  async sendDiscordNotification(message) {
-    if (!this.notificationConfig.discordWebhook) {
+  async sendDiscordNotification(webhookUrl, message) {
+    if (!webhookUrl) {
       return;
     }
 
     try {
-      await axios.post(this.notificationConfig.discordWebhook, {
+      await axios.post(webhookUrl, {
         content: message,
         username: 'Roblox Stats Monitor',
         avatar_url: 'https://tr.rbxcdn.com/38c6edcb50633730ff4cf39ac8859840/150/150/Image/Png'
@@ -197,13 +198,13 @@ class CookieMonitoringService {
   /**
    * Envoie une notification Slack
    */
-  async sendSlackNotification(message) {
-    if (!this.notificationConfig.slackWebhook) {
+  async sendSlackNotification(webhookUrl, message) {
+    if (!webhookUrl) {
       return;
     }
 
     try {
-      await axios.post(this.notificationConfig.slackWebhook, {
+      await axios.post(webhookUrl, {
         text: message,
         username: 'Roblox Stats Monitor'
       });
@@ -216,13 +217,13 @@ class CookieMonitoringService {
   /**
    * Envoie une notification par email
    */
-  async sendEmailNotification(teamName, message) {
-    if (!this.notificationConfig.email) {
+  async sendEmailNotification(emailAddress, teamName, message) {
+    if (!emailAddress) {
       return;
     }
 
     // TODO: Implémenter l'envoi d'email (nodemailer, SendGrid, etc.)
-    console.log(`📧 Email notification would be sent to: ${this.notificationConfig.email}`);
+    console.log(`📧 Email notification would be sent to: ${emailAddress}`);
   }
 
   /**

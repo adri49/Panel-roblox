@@ -105,6 +105,24 @@ export function initDatabase() {
     }
   }
 
+  // Migration: Ajouter colonnes pour webhooks de notifications par équipe
+  const webhookColumns = [
+    'discord_webhook_url',
+    'slack_webhook_url',
+    'notification_email'
+  ];
+
+  for (const column of webhookColumns) {
+    try {
+      db.exec(`ALTER TABLE team_configs ADD COLUMN ${column} TEXT`);
+      console.log(`✅ Migration: Colonne ${column} ajoutée`);
+    } catch (error) {
+      if (!error.message.includes('duplicate column name')) {
+        console.error(`⚠️  Erreur migration ${column}:`, error.message);
+      }
+    }
+  }
+
   console.log('✅ Database initialized successfully');
   console.log(`📁 Database location: ${DB_PATH}`);
 }

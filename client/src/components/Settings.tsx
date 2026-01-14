@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Settings as SettingsIcon, Save, Plus, Trash2, Key, Hash, RefreshCw, ArrowRight, CheckCircle, XCircle, AlertCircle, Shield, LogIn, LogOut } from 'lucide-react'
-import { fetchConfig, updateConfig, addUniverseId, removeUniverseId, clearCache, convertPlaceToUniverse, testApiKey, getOAuthConfig, updateOAuthConfig, startOAuthFlow, revokeOAuthToken, getOAuthStatus } from '../api'
+import { Settings as SettingsIcon, Save, Plus, Trash2, Key, Hash, RefreshCw, ArrowRight, CheckCircle, XCircle, AlertCircle, Shield, LogIn, LogOut, Cookie, Bell, Send } from 'lucide-react'
+import { fetchConfig, updateConfig, addUniverseId, removeUniverseId, clearCache, convertPlaceToUniverse, testApiKey, getOAuthConfig, updateOAuthConfig, startOAuthFlow, revokeOAuthToken, getOAuthStatus, getSessionCookieStatus, setSessionCookie, deleteSessionCookie, checkSessionCookie, getWebhooks, updateWebhooks, deleteWebhooks, testWebhooks } from '../api'
 
 interface ConfigData {
   universeIds: string[]
@@ -37,9 +37,25 @@ const Settings = () => {
   const [oauthStatus, setOauthStatus] = useState<any>(null)
   const [savingOAuth, setSavingOAuth] = useState(false)
 
+  // États Session Cookie
+  const [sessionCookie, setSessionCookie] = useState('')
+  const [hasSessionCookie, setHasSessionCookie] = useState(false)
+  const [checkingCookie, setCheckingCookie] = useState(false)
+  const [cookieCheckResult, setCookieCheckResult] = useState<any>(null)
+
+  // États Webhooks
+  const [discordWebhook, setDiscordWebhook] = useState('')
+  const [slackWebhook, setSlackWebhook] = useState('')
+  const [notificationEmail, setNotificationEmail] = useState('')
+  const [webhooksStatus, setWebhooksStatus] = useState<any>(null)
+  const [savingWebhooks, setSavingWebhooks] = useState(false)
+  const [testingWebhooks, setTestingWebhooks] = useState(false)
+
   useEffect(() => {
     loadConfig()
     loadOAuthConfig()
+    loadSessionCookieStatus()
+    loadWebhooks()
     checkOAuthCallback()
   }, [])
 
@@ -291,6 +307,151 @@ const Settings = () => {
     } catch (error: any) {
       console.error('Error revoking OAuth:', error)
       showMessage('error', error.response?.data?.error || 'Erreur lors de la déconnexion')
+    }
+  }
+
+  // Session Cookie Functions
+  const loadSessionCookieStatus = async () => {
+    try {
+      const data = await getSessionCookieStatus()
+      setHasSessionCookie(data.hasSessionCookie)
+    } catch (error) {
+      console.error('Error loading session cookie status:', error)
+    }
+  }
+
+  const handleSaveSessionCookie = async () => {
+    if (!sessionCookie.trim()) {
+      showMessage('error', 'Veuillez entrer un cookie de session')
+      return
+    }
+
+    try {
+      const result = await setSessionCookie(sessionCookie)
+      showMessage('success', 'Cookie de session configuré avec succès')
+      setSessionCookie('')
+      loadSessionCookieStatus()
+
+      if (result.warning) {
+        setTimeout(() => showMessage('error', result.warning), 3000)
+      }
+    } catch (error: any) {
+      console.error('Error saving session cookie:', error)
+      showMessage('error', error.response?.data?.error || 'Erreur lors de la sauvegarde')
+    }
+  }
+
+  const handleDeleteSessionCookie = async () => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer le cookie de session ?')) {
+      return
+    }
+
+    try {
+      await deleteSessionCookie()
+      showMessage('success', 'Cookie de session supprimé')
+      loadSessionCookieStatus()
+      setCookieCheckResult(null)
+    } catch (error: any) {
+      console.error('Error deleting session cookie:', error)
+      showMessage('error', error.response?.data?.error || 'Erreur lors de la suppression')
+    }
+  }
+
+  const handleCheckSessionCookie = async () => {
+    setCheckingCookie(true)
+    setCookieCheckResult(null)
+
+    try {
+      const result = await checkSessionCookie()
+      setCookieCheckResult(result)
+
+      if (result.isValid) {
+        showMessage('success', 'Cookie valide !')
+      } else if (result.isValid === false) {
+        showMessage('error', 'Cookie expiré ou invalide')
+      } else {
+        showMessage('error', 'Impossible de vérifier le cookie')
+      }
+    } catch (error: any) {
+      console.error('Error checking session cookie:', error)
+      showMessage('error', error.response?.data?.error || 'Erreur lors de la vérification')
+    } finally {
+      setCheckingCookie(false)
+    }
+  }
+
+  // Webhooks Functions
+  const loadWebhooks = async () => {
+    try {
+      const data = await getWebhooks()
+      setWebhooksStatus(data.webhooks)
+      if (data.webhooks.notificationEmail) {
+        setNotificationEmail(data.webhooks.notificationEmail)
+      }
+    } catch (error) {
+      console.error('Error loading webhooks:', error)
+    }
+  }
+
+  const handleSaveWebhooks = async () => {
+    setSavingWebhooks(true)
+
+    try {
+      const updates: any = {}
+
+      if (discordWebhook.trim()) {
+        updates.discordWebhookUrl = discordWebhook.trim()
+      }
+
+      if (slackWebhook.trim()) {
+        updates.slackWebhookUrl = slackWebhook.trim()
+      }
+
+      if (notificationEmail.trim()) {
+        updates.notificationEmail = notificationEmail.trim()
+      }
+
+      const result = await updateWebhooks(updates)
+      showMessage('success', 'Webhooks configurés avec succès')
+
+      setDiscordWebhook('')
+      setSlackWebhook('')
+      loadWebhooks()
+    } catch (error: any) {
+      console.error('Error saving webhooks:', error)
+      showMessage('error', error.response?.data?.error || 'Erreur lors de la sauvegarde')
+    } finally {
+      setSavingWebhooks(false)
+    }
+  }
+
+  const handleDeleteWebhooks = async () => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer tous les webhooks ?')) {
+      return
+    }
+
+    try {
+      await deleteWebhooks()
+      showMessage('success', 'Webhooks supprimés')
+      setNotificationEmail('')
+      loadWebhooks()
+    } catch (error: any) {
+      console.error('Error deleting webhooks:', error)
+      showMessage('error', error.response?.data?.error || 'Erreur lors de la suppression')
+    }
+  }
+
+  const handleTestWebhooks = async () => {
+    setTestingWebhooks(true)
+
+    try {
+      const result = await testWebhooks()
+      showMessage('success', 'Notifications de test envoyées ! Vérifiez vos canaux.')
+    } catch (error: any) {
+      console.error('Error testing webhooks:', error)
+      showMessage('error', error.response?.data?.error || 'Erreur lors du test')
+    } finally {
+      setTestingWebhooks(false)
     }
   }
 
@@ -679,6 +840,213 @@ const Settings = () => {
               </div>
             ))
           )}
+        </div>
+      </div>
+
+      {/* Session Cookie Section */}
+      <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-2xl border border-white/20">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="bg-gradient-to-br from-yellow-500 to-orange-600 p-3 rounded-xl text-white">
+            <Cookie className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-white">Cookie de Session Roblox</h2>
+            <p className="text-white/70">
+              {hasSessionCookie ? '✅ Cookie configuré' : '⚠️ Aucun cookie configuré'}
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 mb-4">
+          <p className="text-yellow-200 text-sm mb-2">
+            ⚠️ <strong>Important:</strong> Le cookie .ROBLOSECURITY est nécessaire pour accéder aux APIs economycreatorstats et engagementpayouts.
+          </p>
+          <p className="text-yellow-200 text-sm">
+            🔒 <strong>Sécurité:</strong> Utilisez un compte dédié avec permissions minimales. Le cookie est chiffré en base de données (AES-256-GCM).
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="text-white font-semibold mb-2 block">Cookie .ROBLOSECURITY</label>
+            <input
+              type="password"
+              value={sessionCookie}
+              onChange={(e) => setSessionCookie(e.target.value)}
+              placeholder={hasSessionCookie ? "Laissez vide pour ne pas changer" : "Collez votre cookie .ROBLOSECURITY"}
+              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
+            />
+            <p className="text-white/60 text-xs mt-1">
+              Trouvez ce cookie dans les DevTools de votre navigateur (Application → Cookies → .ROBLOSECURITY)
+            </p>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={handleSaveSessionCookie}
+              disabled={!sessionCookie.trim()}
+              className="flex-1 bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white font-semibold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              <Save className="w-5 h-5" />
+              Enregistrer le cookie
+            </button>
+
+            {hasSessionCookie && (
+              <>
+                <button
+                  onClick={handleCheckSessionCookie}
+                  disabled={checkingCookie}
+                  className="bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/50 text-blue-200 font-semibold py-3 px-6 rounded-xl transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  <AlertCircle className="w-5 h-5" />
+                  {checkingCookie ? 'Vérification...' : 'Vérifier'}
+                </button>
+
+                <button
+                  onClick={handleDeleteSessionCookie}
+                  className="bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 text-red-300 font-semibold py-3 px-6 rounded-xl transition-all flex items-center gap-2"
+                >
+                  <Trash2 className="w-5 h-5" />
+                  Supprimer
+                </button>
+              </>
+            )}
+          </div>
+
+          {cookieCheckResult && (
+            <div className={`p-4 rounded-xl border ${
+              cookieCheckResult.isValid
+                ? 'bg-green-500/10 border-green-500/30'
+                : 'bg-red-500/10 border-red-500/30'
+            }`}>
+              <div className="flex items-center gap-2 mb-2">
+                {cookieCheckResult.isValid ? (
+                  <CheckCircle className="w-5 h-5 text-green-400" />
+                ) : (
+                  <XCircle className="w-5 h-5 text-red-400" />
+                )}
+                <span className={cookieCheckResult.isValid ? 'text-green-300 font-semibold' : 'text-red-300 font-semibold'}>
+                  {cookieCheckResult.isValid ? 'Cookie valide !' : 'Cookie expiré ou invalide'}
+                </span>
+              </div>
+              <p className={cookieCheckResult.isValid ? 'text-green-200 text-sm' : 'text-red-200 text-sm'}>
+                Vérifié le: {new Date(cookieCheckResult.checkedAt).toLocaleString('fr-FR')}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Webhooks Notifications Section */}
+      <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-2xl border border-white/20">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="bg-gradient-to-br from-purple-500 to-pink-600 p-3 rounded-xl text-white">
+            <Bell className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-white">Notifications de Monitoring</h2>
+            <p className="text-white/70">
+              Configurez où recevoir les alertes d'expiration de cookie
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
+          <p className="text-blue-200 text-sm mb-2">
+            🔔 <strong>Monitoring automatique:</strong> Le système vérifie votre cookie toutes les heures.
+          </p>
+          <p className="text-blue-200 text-sm">
+            📧 <strong>Notifications:</strong> Vous serez alerté par Discord/Slack/Email si le cookie expire (max 1 notification par 24h).
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          {/* Discord Webhook */}
+          <div>
+            <label className="text-white font-semibold mb-2 flex items-center gap-2">
+              <span className="text-2xl">💬</span>
+              Webhook Discord
+            </label>
+            <input
+              type="text"
+              value={discordWebhook}
+              onChange={(e) => setDiscordWebhook(e.target.value)}
+              placeholder={webhooksStatus?.hasDiscordWebhook ? "Webhook configuré - laissez vide pour ne pas changer" : "https://discord.com/api/webhooks/..."}
+              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+            />
+            <p className="text-white/60 text-xs mt-1">
+              {webhooksStatus?.hasDiscordWebhook ? '✅ Webhook Discord configuré' : '⚠️ Aucun webhook Discord configuré'}
+            </p>
+          </div>
+
+          {/* Slack Webhook */}
+          <div>
+            <label className="text-white font-semibold mb-2 flex items-center gap-2">
+              <span className="text-2xl">💼</span>
+              Webhook Slack
+            </label>
+            <input
+              type="text"
+              value={slackWebhook}
+              onChange={(e) => setSlackWebhook(e.target.value)}
+              placeholder={webhooksStatus?.hasSlackWebhook ? "Webhook configuré - laissez vide pour ne pas changer" : "https://hooks.slack.com/services/..."}
+              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+            />
+            <p className="text-white/60 text-xs mt-1">
+              {webhooksStatus?.hasSlackWebhook ? '✅ Webhook Slack configuré' : '⚠️ Aucun webhook Slack configuré'}
+            </p>
+          </div>
+
+          {/* Email Notifications */}
+          <div>
+            <label className="text-white font-semibold mb-2 flex items-center gap-2">
+              <span className="text-2xl">📧</span>
+              Email de Notification
+            </label>
+            <input
+              type="email"
+              value={notificationEmail}
+              onChange={(e) => setNotificationEmail(e.target.value)}
+              placeholder="votre@email.com"
+              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+            />
+            <p className="text-white/60 text-xs mt-1">
+              {webhooksStatus?.hasNotificationEmail ? '✅ Email configuré' : '⚠️ Aucun email configuré'}
+            </p>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-2">
+            <button
+              onClick={handleSaveWebhooks}
+              disabled={savingWebhooks || (!discordWebhook.trim() && !slackWebhook.trim() && !notificationEmail.trim())}
+              className="flex-1 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-semibold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              <Save className="w-5 h-5" />
+              {savingWebhooks ? 'Sauvegarde...' : 'Enregistrer les webhooks'}
+            </button>
+
+            {(webhooksStatus?.hasDiscordWebhook || webhooksStatus?.hasSlackWebhook || webhooksStatus?.hasNotificationEmail) && (
+              <>
+                <button
+                  onClick={handleTestWebhooks}
+                  disabled={testingWebhooks}
+                  className="bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/50 text-blue-200 font-semibold py-3 px-6 rounded-xl transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  <Send className="w-5 h-5" />
+                  {testingWebhooks ? 'Test...' : 'Tester'}
+                </button>
+
+                <button
+                  onClick={handleDeleteWebhooks}
+                  className="bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 text-red-300 font-semibold py-3 px-6 rounded-xl transition-all flex items-center gap-2"
+                >
+                  <Trash2 className="w-5 h-5" />
+                  Supprimer
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
