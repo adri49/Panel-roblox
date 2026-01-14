@@ -349,4 +349,157 @@ router.get('/session-cookie/check', async (req, res) => {
   }
 });
 
+/**
+ * 🔔 ROUTES DE GESTION DES WEBHOOKS DE NOTIFICATION PAR ÉQUIPE
+ * Ces routes permettent à chaque équipe de configurer ses propres webhooks
+ */
+
+// GET /api/config/webhooks - Récupérer les webhooks configurés (sans exposer les URLs complètes)
+router.get('/webhooks', (req, res) => {
+  try {
+    const webhooks = teamConfigService.getWebhooks(req.teamId);
+
+    // Ne pas exposer les URLs complètes, juste indiquer si elles sont configurées
+    res.json({
+      success: true,
+      webhooks: {
+        hasDiscordWebhook: !!webhooks.discordWebhookUrl,
+        hasSlackWebhook: !!webhooks.slackWebhookUrl,
+        hasNotificationEmail: !!webhooks.notificationEmail,
+        notificationEmail: webhooks.notificationEmail || null // OK d'exposer l'email
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// POST /api/config/webhooks - Configurer les webhooks
+router.post('/webhooks', requireConfigPermission, (req, res) => {
+  try {
+    const { discordWebhookUrl, slackWebhookUrl, notificationEmail } = req.body;
+
+    // Validation des URLs de webhook si fournies
+    if (discordWebhookUrl && !discordWebhookUrl.startsWith('https://discord.com/api/webhooks/')) {
+      return res.status(400).json({
+        success: false,
+        error: 'URL Discord webhook invalide (doit commencer par https://discord.com/api/webhooks/)'
+      });
+    }
+
+    if (slackWebhookUrl && !slackWebhookUrl.startsWith('https://hooks.slack.com/')) {
+      return res.status(400).json({
+        success: false,
+        error: 'URL Slack webhook invalide (doit commencer par https://hooks.slack.com/)'
+      });
+    }
+
+    // Validation de l'email si fourni
+    if (notificationEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(notificationEmail)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Format email invalide'
+      });
+    }
+
+    // Mettre à jour les webhooks
+    const updatedWebhooks = teamConfigService.updateWebhooks(req.teamId, {
+      discordWebhookUrl,
+      slackWebhookUrl,
+      notificationEmail
+    });
+
+    console.log(`🔔 Webhooks configurés pour l'équipe ${req.teamId} par l'utilisateur ${req.user.userId}`);
+
+    res.json({
+      success: true,
+      message: 'Webhooks configurés avec succès',
+      webhooks: {
+        hasDiscordWebhook: !!updatedWebhooks.discordWebhookUrl,
+        hasSlackWebhook: !!updatedWebhooks.slackWebhookUrl,
+        hasNotificationEmail: !!updatedWebhooks.notificationEmail,
+        notificationEmail: updatedWebhooks.notificationEmail || null
+      }
+    });
+  } catch (error) {
+    console.error('Erreur lors de la configuration des webhooks:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// DELETE /api/config/webhooks - Supprimer tous les webhooks
+router.delete('/webhooks', requireConfigPermission, (req, res) => {
+  try {
+    teamConfigService.clearWebhooks(req.teamId);
+
+    console.log(`🗑️  Webhooks supprimés pour l'équipe ${req.teamId} par l'utilisateur ${req.user.userId}`);
+
+    res.json({
+      success: true,
+      message: 'Webhooks supprimés avec succès'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// POST /api/config/webhooks/test - Tester les webhooks configurés
+router.post('/webhooks/test', requireConfigPermission, async (req, res) => {
+  try {
+    const webhooks = teamConfigService.getWebhooks(req.teamId);
+
+    if (!webhooks.discordWebhookUrl && !webhooks.slackWebhookUrl && !webhooks.notificationEmail) {
+      return res.status(400).json({
+        success: false,
+        error: 'Aucun webhook configuré'
+      });
+    }
+
+    const testMessage = `
+🧪 **Test de Notification**
+
+Ceci est un message de test depuis votre Panel Roblox.
+
+✅ Si vous recevez ce message, vos notifications fonctionnent correctement !
+
+Équipe: ${req.teamId}
+Date: ${new Date().toISOString()}
+    `.trim();
+
+    // Envoyer le message de test
+    const results = await Promise.allSettled([
+      cookieMonitoring.sendDiscordNotification(webhooks.discordWebhookUrl, testMessage),
+      cookieMonitoring.sendSlackNotification(webhooks.slackWebhookUrl, testMessage),
+      cookieMonitoring.sendEmailNotification(webhooks.notificationEmail, 'Test Team', testMessage)
+    ]);
+
+    const [discordResult, slackResult, emailResult] = results;
+
+    res.json({
+      success: true,
+      message: 'Tests de notification envoyés',
+      results: {
+        discord: discordResult.status === 'fulfilled' ? 'Envoyé' : 'Échec',
+        slack: slackResult.status === 'fulfilled' ? 'Envoyé' : 'Échec',
+        email: emailResult.status === 'fulfilled' ? 'Envoyé' : 'Échec'
+      }
+    });
+  } catch (error) {
+    console.error('Erreur lors du test des webhooks:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 export default router;

@@ -301,6 +301,116 @@ class TeamConfigService {
 
     console.log(`🗑️  Cookie de session supprimé pour l'équipe ${teamId}`);
   }
+
+  /**
+   * 🔔 WEBHOOKS DE NOTIFICATIONS PAR ÉQUIPE
+   * Ces méthodes gèrent les webhooks pour les notifications de monitoring de cookies
+   */
+
+  /**
+   * Récupère les webhooks configurés pour une équipe
+   *
+   * @param {number} teamId - ID de l'équipe
+   * @returns {Object} { discordWebhookUrl, slackWebhookUrl, notificationEmail }
+   */
+  getWebhooks(teamId) {
+    const db = getDatabase();
+
+    const result = db.prepare(`
+      SELECT discord_webhook_url, slack_webhook_url, notification_email
+      FROM team_configs
+      WHERE team_id = ?
+    `).get(teamId);
+
+    if (!result) {
+      return {
+        discordWebhookUrl: null,
+        slackWebhookUrl: null,
+        notificationEmail: null
+      };
+    }
+
+    return {
+      discordWebhookUrl: result.discord_webhook_url,
+      slackWebhookUrl: result.slack_webhook_url,
+      notificationEmail: result.notification_email
+    };
+  }
+
+  /**
+   * Met à jour les webhooks d'une équipe
+   *
+   * @param {number} teamId - ID de l'équipe
+   * @param {Object} webhooks - { discordWebhookUrl?, slackWebhookUrl?, notificationEmail? }
+   */
+  updateWebhooks(teamId, webhooks) {
+    const db = getDatabase();
+
+    const updates = {};
+    if (webhooks.discordWebhookUrl !== undefined) {
+      updates.discord_webhook_url = webhooks.discordWebhookUrl || null;
+    }
+    if (webhooks.slackWebhookUrl !== undefined) {
+      updates.slack_webhook_url = webhooks.slackWebhookUrl || null;
+    }
+    if (webhooks.notificationEmail !== undefined) {
+      updates.notification_email = webhooks.notificationEmail || null;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return this.getWebhooks(teamId);
+    }
+
+    const setClauses = Object.keys(updates).map(key => `${key} = ?`);
+    const values = Object.values(updates);
+
+    setClauses.push('last_updated = CURRENT_TIMESTAMP');
+    values.push(teamId);
+
+    const query = `
+      UPDATE team_configs
+      SET ${setClauses.join(', ')}
+      WHERE team_id = ?
+    `;
+
+    db.prepare(query).run(...values);
+
+    console.log(`🔔 Webhooks mis à jour pour l'équipe ${teamId}`);
+
+    return this.getWebhooks(teamId);
+  }
+
+  /**
+   * Efface tous les webhooks d'une équipe
+   *
+   * @param {number} teamId - ID de l'équipe
+   */
+  clearWebhooks(teamId) {
+    const db = getDatabase();
+
+    db.prepare(`
+      UPDATE team_configs
+      SET
+        discord_webhook_url = NULL,
+        slack_webhook_url = NULL,
+        notification_email = NULL,
+        last_updated = CURRENT_TIMESTAMP
+      WHERE team_id = ?
+    `).run(teamId);
+
+    console.log(`🗑️  Webhooks supprimés pour l'équipe ${teamId}`);
+  }
+
+  /**
+   * Vérifie si une équipe a des webhooks configurés
+   *
+   * @param {number} teamId - ID de l'équipe
+   * @returns {boolean}
+   */
+  hasWebhooks(teamId) {
+    const webhooks = this.getWebhooks(teamId);
+    return !!(webhooks.discordWebhookUrl || webhooks.slackWebhookUrl || webhooks.notificationEmail);
+  }
 }
 
 export default new TeamConfigService();

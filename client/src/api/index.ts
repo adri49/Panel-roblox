@@ -97,3 +97,49 @@ export const getOAuthStatus = async () => {
   const response = await axios.get(`${API_BASE}/oauth/status`)
   return response.data
 }
+
+// Session Cookie API
+export const getSessionCookieStatus = async () => {
+  const response = await axios.get(`${API_BASE}/config/session-cookie/status`)
+  return response.data
+}
+
+export const setSessionCookie = async (sessionCookie: string) => {
+  const response = await axios.post(`${API_BASE}/config/session-cookie`, { sessionCookie })
+  return response.data
+}
+
+export const deleteSessionCookie = async () => {
+  const response = await axios.delete(`${API_BASE}/config/session-cookie`)
+  return response.data
+}
+
+export const checkSessionCookie = async () => {
+  const response = await axios.get(`${API_BASE}/config/session-cookie/check`)
+  return response.data
+}
+
+// Webhooks API
+export const getWebhooks = async () => {
+  const response = await axios.get(`${API_BASE}/config/webhooks`)
+  return response.data
+}
+
+export const updateWebhooks = async (webhooks: {
+  discordWebhookUrl?: string
+  slackWebhookUrl?: string
+  notificationEmail?: string
+}) => {
+  const response = await axios.post(`${API_BASE}/config/webhooks`, webhooks)
+  return response.data
+}
+
+export const deleteWebhooks = async () => {
+  const response = await axios.delete(`${API_BASE}/config/webhooks`)
+  return response.data
+}
+
+export const testWebhooks = async () => {
+  const response = await axios.post(`${API_BASE}/config/webhooks/test`)
+  return response.data
+}
