@@ -1,5 +1,5 @@
-import { getDatabase } from './server/src/services/database.js';
-import teamConfigService from './server/src/services/teamConfigService.js';
+import { getDatabase } from '../server/src/services/database.js';
+import teamConfigService from '../server/src/services/teamConfigService.js';
 
 console.log('\n=== Test de sauvegarde de cookie ===\n');
 

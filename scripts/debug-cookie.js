@@ -1,5 +1,5 @@
-import { getDatabase } from './src/services/database.js';
-import teamConfigService from './src/services/teamConfigService.js';
+import { getDatabase } from '../server/src/services/database.js';
+import teamConfigService from '../server/src/services/teamConfigService.js';
 
 // Script de diagnostic pour vérifier le cookie
 console.log('=== Diagnostic Cookie ===\n');
