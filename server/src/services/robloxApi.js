@@ -133,36 +133,55 @@ class RobloxAPI {
     const cached = cache.get(cacheKey);
     if (cached) return cached;
 
-    const apiKey = this.getApiKey();
-
     try {
       let totalRevenue = 0;
-      let products = [];
+      let revenueDetails = {};
+      let salesData = null;
+      let authMethod = 'None';
 
-      // Try to get game passes (public API - no key needed)
+      // PRIORITÉ 1: Essayer economycreatorstats API (nécessite Cookie ou OAuth)
       try {
-        const gamePasses = await this.getGamePasses(universeId);
-        products = [...gamePasses];
+        console.log(`💰 Tentative de récupération des stats économiques pour ${universeId}...`);
+        const economyStats = await this.getUniverseEconomyStats(universeId);
 
-        totalRevenue = gamePasses.reduce((sum, pass) => {
-          return sum + (pass.price || 0);
-        }, 0);
+        if (economyStats && economyStats.data) {
+          // Calculer le revenu total des derniers jours
+          const robuxEarned = economyStats.data.robuxEarned || 0;
+          totalRevenue = robuxEarned;
+          revenueDetails = economyStats.data;
+          authMethod = economyStats.authMethod;
 
-        console.log(`Found ${gamePasses.length} game passes for universe ${universeId}`);
+          console.log(`✅ Stats économiques récupérées: ${robuxEarned} Robux (${authMethod})`);
+        }
       } catch (error) {
-        console.log(`Game passes error for ${universeId}: ${error.message}`);
+        console.log(`⚠️  economycreatorstats API échouée pour ${universeId}: ${error.message}`);
       }
 
-      // Note: Real revenue/sales data requires Analytics API or webhooks
-      // which are not publicly available via Open Cloud yet
+      // PRIORITÉ 2: Essayer engagementpayouts API (revenus des 30 derniers jours)
+      try {
+        console.log(`💸 Tentative de récupération des payouts pour ${universeId}...`);
+        const payoutData = await this.getEngagementPayouts(universeId);
+
+        if (payoutData && payoutData.data) {
+          salesData = payoutData.data;
+          authMethod = payoutData.authMethod || authMethod;
+
+          console.log(`✅ Payouts récupérés (${authMethod})`);
+        }
+      } catch (error) {
+        console.log(`⚠️  engagementpayouts API échouée pour ${universeId}: ${error.message}`);
+      }
+
       const revenue = {
         universeId,
         totalRevenue,
-        products,
+        revenueDetails,
+        salesData,
         currency: 'R$',
-        note: apiKey
-          ? 'Showing game pass prices. Real sales data requires Analytics API access.'
-          : 'Add API key for additional data access.'
+        authMethod,
+        note: authMethod === 'None'
+          ? 'Aucune méthode d\'authentification disponible. Configurez un cookie de session ou OAuth 2.0.'
+          : `Données récupérées via ${authMethod}`
       };
 
       cache.set(cacheKey, revenue);
@@ -172,8 +191,8 @@ class RobloxAPI {
       return {
         universeId,
         totalRevenue: 0,
-        products: [],
-        error: error.message
+        error: error.message,
+        authMethod: 'None'
       };
     }
   }
