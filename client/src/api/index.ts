@@ -105,19 +105,8 @@ export const getSessionCookieStatus = async () => {
 }
 
 export const setSessionCookie = async (sessionCookie: string) => {
-  console.log('🔍 [API] setSessionCookie appelé, longueur:', sessionCookie.length)
-  console.log('🔍 [API] URL:', `${API_BASE}/config/session-cookie`)
-  console.log('🔍 [API] Début du cookie:', sessionCookie.substring(0, 50))
-
-  try {
-    const response = await axios.post(`${API_BASE}/config/session-cookie`, { sessionCookie })
-    console.log('🔍 [API] Réponse reçue:', response.status, response.data)
-    return response.data
-  } catch (error: any) {
-    console.error('❌ [API] Erreur axios:', error)
-    console.error('❌ [API] error.response:', error.response)
-    throw error
-  }
+  const response = await axios.post(`${API_BASE}/config/session-cookie`, { sessionCookie })
+  return response.data
 }
 
 export const deleteSessionCookie = async () => {

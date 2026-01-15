@@ -1,2 +1,3 @@
 data/panel.db
-data/panel.db
+.env
+node_modules/

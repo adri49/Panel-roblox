@@ -1,4 +1,4 @@
-import { getDatabase } from './server/src/services/database.js';
+import { getDatabase } from '../server/src/services/database.js';
 
 const db = getDatabase();
 

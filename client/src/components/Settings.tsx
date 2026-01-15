@@ -321,21 +321,12 @@ const Settings = () => {
   }
 
   const handleSaveSessionCookie = async () => {
-    console.log('🔍 [DEBUG] handleSaveSessionCookie appelé')
-    console.log('🔍 [DEBUG] Longueur du cookie:', sessionCookie.length)
-    console.log('🔍 [DEBUG] Début du cookie:', sessionCookie.substring(0, 50))
-
     if (!sessionCookie.trim()) {
       showMessage('error', 'Veuillez entrer un cookie de session')
       return
     }
 
-    console.log('🔍 [DEBUG] Validation passée, appel direct axios...')
-
     try {
-      console.log('🔍 [DEBUG] Avant axios.post')
-
-      // BYPASS CACHE: Appel axios direct au lieu de passer par api/index.ts
       const response = await fetch('/api/config/session-cookie', {
         method: 'POST',
         headers: {
@@ -346,10 +337,7 @@ const Settings = () => {
         body: JSON.stringify({ sessionCookie })
       })
 
-      console.log('🔍 [DEBUG] Réponse reçue, status:', response.status)
-
       const result = await response.json()
-      console.log('🔍 [DEBUG] Données JSON:', result)
 
       if (!response.ok) {
         throw new Error(result.error || 'Erreur lors de la sauvegarde')
@@ -363,10 +351,8 @@ const Settings = () => {
         setTimeout(() => showMessage('error', result.warning), 3000)
       }
     } catch (error: any) {
-      console.error('❌ [ERROR] Erreur lors de la sauvegarde du cookie:', error)
-      console.error('❌ [ERROR] error.response:', error.response)
-      console.error('❌ [ERROR] error.message:', error.message)
-      const errorMessage = error.response?.data?.error || error.message || 'Erreur lors de la sauvegarde'
+      console.error('Error saving session cookie:', error)
+      const errorMessage = error.message || 'Erreur lors de la sauvegarde'
       showMessage('error', errorMessage)
     }
   }
