@@ -1,4 +1,6 @@
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 
 /**
  * Service de chiffrement pour les cookies Roblox
@@ -6,8 +8,7 @@ import crypto from 'crypto';
  */
 class CookieEncryptionService {
   constructor() {
-    // Clé de chiffrement dérivée de l'environnement
-    // IMPORTANT: Définir COOKIE_ENCRYPTION_KEY dans .env en production
+    // Clé de chiffrement dérivée de config.json
     this.encryptionKey = this.getEncryptionKey();
     this.algorithm = 'aes-256-gcm';
   }
@@ -16,21 +17,36 @@ class CookieEncryptionService {
    * Récupère ou génère une clé de chiffrement
    */
   getEncryptionKey() {
-    // Utiliser la clé de l'environnement si disponible
-    if (process.env.COOKIE_ENCRYPTION_KEY) {
-      return Buffer.from(process.env.COOKIE_ENCRYPTION_KEY, 'hex');
+    // Charger config.json
+    const configPath = path.join(process.cwd(), 'config.json');
+    let config = {};
+
+    try {
+      if (fs.existsSync(configPath)) {
+        const configData = fs.readFileSync(configPath, 'utf8');
+        config = JSON.parse(configData);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la lecture de config.json:', error.message);
     }
 
-    // Générer une clé déterministe basée sur NODE_ENV
-    // EN PRODUCTION, TOUJOURS utiliser COOKIE_ENCRYPTION_KEY dans .env !
-    const seed = process.env.NODE_ENV === 'production'
-      ? 'CHANGE_THIS_IN_PRODUCTION_VIA_ENV_VAR'
-      : 'development_key_not_for_production';
+    // Utiliser la clé de config.json si disponible
+    if (config.cookieEncryptionKey) {
+      return Buffer.from(config.cookieEncryptionKey, 'hex');
+    }
 
-    console.warn('⚠️  ATTENTION: Utilisation d\'une clé de chiffrement par défaut');
-    console.warn('⚠️  Définissez COOKIE_ENCRYPTION_KEY dans .env pour la production !');
+    // Générer une clé aléatoire et la sauvegarder dans config.json
+    const newKey = crypto.randomBytes(32).toString('hex');
+    config.cookieEncryptionKey = newKey;
 
-    return crypto.scryptSync(seed, 'salt', 32);
+    try {
+      fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
+      console.log('🔐 Nouvelle clé de chiffrement générée et sauvegardée dans config.json');
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde de la clé:', error.message);
+    }
+
+    return Buffer.from(newKey, 'hex');
   }
 
   /**
