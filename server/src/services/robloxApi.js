@@ -99,13 +99,13 @@ class RobloxAPI {
         throw new Error(`Universe ${universeId} not found`);
       }
 
-      // Try to get revenue data
+      // Try to get revenue data (non-blocking)
       let revenue = 0;
       try {
         const revenueData = await this.getGameRevenue(universeId);
         revenue = revenueData.totalRevenue || 0;
       } catch (error) {
-        console.log(`Could not fetch revenue for ${universeId}`);
+        console.log(`⚠️  Could not fetch revenue for ${universeId}: ${error.message}`);
       }
 
       const stats = {
@@ -304,34 +304,104 @@ class RobloxAPI {
     const cached = cache.get(cacheKey);
     if (cached) return cached;
 
-    const apiKey = this.getApiKey();
-
     try {
-      // Get available products (game passes)
-      const products = await this.getGamePasses(universeId);
+      console.log(`💳 Récupération des données de ventes pour ${universeId}...`);
 
-      // Mock transaction data from products
-      // Real transaction history requires webhook integration or Analytics API
-      const transactions = products.map(product => ({
-        id: `product_${product.id}`,
-        productName: product.name,
-        productId: product.id,
-        buyerUsername: 'Webhook required',
-        buyerId: null,
-        price: product.price || 0,
-        currency: 'R$',
-        timestamp: new Date().toISOString(),
-        note: 'Configure webhooks for real purchase tracking'
-      }));
+      // ÉTAPE 1: Récupérer les stats économiques (ventes, conversions)
+      let transactions = [];
+      let totalRevenue = 0;
+      let economyData = null;
+      let payoutData = null;
+
+      try {
+        const economyStats = await this.getUniverseEconomyStats(universeId);
+        economyData = economyStats;
+
+        if (economyStats && economyStats.data && economyStats.data.data) {
+          const data = economyStats.data.data;
+
+          // Extraire les ventes (Upsells)
+          if (data.Upsells && Array.isArray(data.Upsells)) {
+            data.Upsells.forEach((sale, index) => {
+              if (Array.isArray(sale) && sale.length >= 2) {
+                const [timestamp, amount] = sale;
+
+                // Ignorer les données invalides
+                if (timestamp > 0 && amount > 0) {
+                  transactions.push({
+                    id: `sale_${universeId}_${index}`,
+                    type: 'Upsell',
+                    amount,
+                    currency: 'R$',
+                    timestamp: new Date(timestamp).toISOString(),
+                    source: 'economycreatorstats'
+                  });
+                  totalRevenue += amount;
+                }
+              }
+            });
+          }
+        }
+
+        console.log(`✅ ${transactions.length} ventes trouvées depuis economycreatorstats`);
+      } catch (error) {
+        console.log(`⚠️  economycreatorstats échoué: ${error.message}`);
+      }
+
+      // ÉTAPE 2: Récupérer les payouts d'engagement
+      try {
+        const payouts = await this.getEngagementPayouts(universeId);
+        payoutData = payouts;
+
+        if (payouts && payouts.data && payouts.data.payoutHistory) {
+          payouts.data.payoutHistory.forEach((payout, index) => {
+            transactions.push({
+              id: `payout_${universeId}_${index}`,
+              type: 'Engagement Payout',
+              amount: payout.amount || 0,
+              currency: 'R$',
+              timestamp: payout.date || new Date().toISOString(),
+              source: 'engagementpayouts'
+            });
+            totalRevenue += payout.amount || 0;
+          });
+
+          console.log(`✅ ${payouts.data.payoutHistory.length} payouts trouvés`);
+        }
+      } catch (error) {
+        console.log(`⚠️  engagementpayouts échoué: ${error.message}`);
+      }
+
+      // ÉTAPE 3: Si aucune donnée, récupérer au moins les produits disponibles
+      if (transactions.length === 0) {
+        console.log(`ℹ️  Aucune transaction trouvée, affichage des produits disponibles`);
+
+        const products = await this.getGamePasses(universeId);
+        transactions = products.map(product => ({
+          id: `product_${product.id}`,
+          type: 'Game Pass',
+          productName: product.name,
+          productId: product.id,
+          price: product.price || 0,
+          currency: 'R$',
+          timestamp: null,
+          note: 'Produit disponible (pas de vente enregistrée)'
+        }));
+      }
 
       const sales = {
         universeId,
-        transactions,
-        totalSales: transactions.reduce((sum, t) => sum + t.price, 0),
-        note: 'Real-time sales tracking requires webhook setup. Showing available products only.'
+        transactions: transactions.sort((a, b) =>
+          new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime()
+        ),
+        totalSales: totalRevenue,
+        totalTransactions: transactions.length,
+        economyData,
+        payoutData,
+        lastUpdated: new Date().toISOString()
       };
 
-      cache.set(cacheKey, sales);
+      cache.set(cacheKey, sales, 300); // Cache 5 minutes
       return sales;
     } catch (error) {
       console.error(`Error fetching sales for universe ${universeId}:`, error.message);
