@@ -31,6 +31,22 @@ router.get('/universe/:universeId/details', async (req, res) => {
   }
 });
 
+// Get comprehensive analytics from all dashboard endpoints
+router.get('/universe/:universeId/analytics', async (req, res) => {
+  try {
+    const { universeId } = req.params;
+    robloxApi.setTeamContext(req.teamId);
+    const analytics = await robloxApi.getComprehensiveAnalytics(universeId);
+    res.json(analytics);
+  } catch (error) {
+    console.error(`Error fetching comprehensive analytics for ${universeId}:`, error);
+    res.status(500).json({
+      error: error.message,
+      details: 'Impossible de récupérer les analytics. Vérifiez que le cookie de session est configuré correctement.'
+    });
+  }
+});
+
 router.get('/revenue/:universeId', async (req, res) => {
   try {
     const { universeId } = req.params;
