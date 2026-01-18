@@ -3,6 +3,7 @@ import NodeCache from 'node-cache';
 import configManager from './configManager.js';
 import teamConfigService from './teamConfigService.js';
 import oauth2Service from './oauth2Service.js';
+import creatorHubScraper from './creatorHubScraper.js';
 
 const cache = new NodeCache({ stdTTL: 300 });
 
@@ -170,6 +171,25 @@ class RobloxAPI {
         }
       } catch (error) {
         console.log(`⚠️  engagementpayouts API échouée pour ${universeId}: ${error.message}`);
+      }
+
+      // PRIORITÉ 3: SCRAPER DU CREATOR HUB (Si APIs échouent ou retournent 0)
+      if (totalRevenue === 0 && authMethod !== 'None' && this.currentTeamId) {
+        try {
+          console.log(`🕷️  Tentative de scraping du Creator Hub pour ${universeId}...`);
+          const scrapedData = await creatorHubScraper.getUniverseAnalytics(universeId, this.currentTeamId);
+
+          if (scrapedData && scrapedData.revenue) {
+            totalRevenue = scrapedData.revenue.totalRevenue || 0;
+            revenueDetails = scrapedData.revenue.details || {};
+            salesData = scrapedData.sales || null;
+            authMethod = 'Creator Hub Scraper';
+
+            console.log(`✅ Données récupérées via scraping: ${totalRevenue} Robux`);
+          }
+        } catch (error) {
+          console.log(`⚠️  Creator Hub scraping échoué pour ${universeId}: ${error.message}`);
+        }
       }
 
       const revenue = {
@@ -370,6 +390,23 @@ class RobloxAPI {
         }
       } catch (error) {
         console.log(`⚠️  engagementpayouts échoué: ${error.message}`);
+      }
+
+      // ÉTAPE 2.5: SCRAPER DU CREATOR HUB (Si APIs échouent ou retournent 0)
+      if (transactions.length === 0 && this.currentTeamId) {
+        try {
+          console.log(`🕷️  Tentative de scraping des ventes via Creator Hub pour ${universeId}...`);
+          const scrapedData = await creatorHubScraper.getUniverseAnalytics(universeId, this.currentTeamId);
+
+          if (scrapedData && scrapedData.sales && scrapedData.sales.transactions) {
+            transactions = scrapedData.sales.transactions;
+            totalRevenue = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+
+            console.log(`✅ ${transactions.length} transactions récupérées via scraping`);
+          }
+        } catch (error) {
+          console.log(`⚠️  Creator Hub scraping échoué: ${error.message}`);
+        }
       }
 
       // ÉTAPE 3: Si aucune donnée, récupérer au moins les produits disponibles
