@@ -538,7 +538,18 @@ class RobloxAPI {
     if (cached) return cached;
 
     console.log(`🔍 Fetching economycreatorstats API for universe ${universeId}...`);
-    const url = `${this.economyCreatorStatsURL}/v1/universes/${universeId}/stats`;
+
+    // Calculer la période: derniers 30 jours
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+
+    const startTime = startDate.toISOString();
+    const endTime = endDate.toISOString();
+
+    console.log(`   📅 Period: ${startTime.split('T')[0]} → ${endTime.split('T')[0]}`);
+
+    const url = `${this.economyCreatorStatsURL}/v1/universes/${universeId}/stats?startTime=${startTime}&endTime=${endTime}&type=Revenue`;
 
     // Méthode 1: Essayer Cookie de Session (PRIORITÉ pour cette API legacy)
     if (this.currentTeamId) {
